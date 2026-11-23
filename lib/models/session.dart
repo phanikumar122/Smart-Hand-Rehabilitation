@@ -6,6 +6,7 @@ class RehabSession {
   final Duration duration;
   final int maxGrip;
   final int averageMovement;
+  final int readingCount;
 
   RehabSession({
     required this.id,
@@ -13,6 +14,7 @@ class RehabSession {
     required this.duration,
     required this.maxGrip,
     required this.averageMovement,
+    required this.readingCount,
   });
 
   Map<String, dynamic> toMap() {
@@ -22,6 +24,7 @@ class RehabSession {
       'duration': duration.inSeconds,
       'maxGrip': maxGrip,
       'averageMovement': averageMovement,
+      'readingCount': readingCount,
     };
   }
 
@@ -32,10 +35,12 @@ class RehabSession {
       duration: Duration(seconds: map['duration']),
       maxGrip: map['maxGrip'],
       averageMovement: map['averageMovement'],
+      readingCount: map['readingCount'] ?? 0,
     );
   }
 
   String toJson() => json.encode(toMap());
 
-  factory RehabSession.fromJson(String source) => RehabSession.fromMap(json.decode(source));
+  factory RehabSession.fromJson(String source) =>
+      RehabSession.fromMap(json.decode(source));
 }

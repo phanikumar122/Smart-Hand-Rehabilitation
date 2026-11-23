@@ -16,24 +16,14 @@ public final class GeneratedPluginRegistrant {
   private static final String TAG = "GeneratedPluginRegistrant";
   public static void registerWith(@NonNull FlutterEngine flutterEngine) {
     try {
-      flutterEngine.getPlugins().add(new io.github.edufolly.flutterbluetoothserial.FlutterBluetoothSerialPlugin());
+      flutterEngine.getPlugins().add(new com.flutter_classic_bluetooth.flutter_classic_bluetooth.FlutterClassicBluetoothPlugin());
     } catch (Exception e) {
-      Log.e(TAG, "Error registering plugin flutter_bluetooth_serial, io.github.edufolly.flutterbluetoothserial.FlutterBluetoothSerialPlugin", e);
+      Log.e(TAG, "Error registering plugin flutter_classic_bluetooth, com.flutter_classic_bluetooth.flutter_classic_bluetooth.FlutterClassicBluetoothPlugin", e);
     }
     try {
       flutterEngine.getPlugins().add(new com.github.dart_lang.jni.JniPlugin());
     } catch (Exception e) {
       Log.e(TAG, "Error registering plugin jni, com.github.dart_lang.jni.JniPlugin", e);
-    }
-    try {
-      flutterEngine.getPlugins().add(new com.github.dart_lang.jni_flutter.JniFlutterPlugin());
-    } catch (Exception e) {
-      Log.e(TAG, "Error registering plugin jni_flutter, com.github.dart_lang.jni_flutter.JniFlutterPlugin", e);
-    }
-    try {
-      flutterEngine.getPlugins().add(new com.baseflow.permissionhandler.PermissionHandlerPlugin());
-    } catch (Exception e) {
-      Log.e(TAG, "Error registering plugin permission_handler_android, com.baseflow.permissionhandler.PermissionHandlerPlugin", e);
     }
     try {
       flutterEngine.getPlugins().add(new io.flutter.plugins.sharedpreferences.SharedPreferencesPlugin());

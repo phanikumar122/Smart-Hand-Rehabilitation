@@ -17,11 +17,19 @@ class SensorData {
     DateTime? timestamp,
   }) : timestamp = timestamp ?? DateTime.now();
 
-  static SensorData? fromCsv(String csv) {
+  static SensorData? fromCsv(String csv, {DateTime? timestamp}) {
     try {
       final parts = csv.split(',');
       if (parts.length == 6) {
+        final values = parts.map((part) => int.tryParse(part.trim())).toList();
+        if (values.any((value) => value == null) ||
+            values.take(5).any((value) => value! < 0 || value > 90) ||
+            values[5]! < 0 ||
+            values[5]! > 1023) {
+          return null;
+        }
         return SensorData(
+          timestamp: timestamp,
           thumb: int.parse(parts[0].trim()),
           index: int.parse(parts[1].trim()),
           middle: int.parse(parts[2].trim()),
@@ -34,16 +42,5 @@ class SensorData {
       // Ignored
     }
     return null;
-  }
-
-  factory SensorData.empty() {
-    return SensorData(
-      thumb: 0,
-      index: 0,
-      middle: 0,
-      ring: 0,
-      pinky: 0,
-      grip: 0,
-    );
   }
 }
