@@ -4,71 +4,110 @@ import 'package:shared_preferences/shared_preferences.dart';
 class AppTheme {
   AppTheme._();
 
-  static const Color primaryColor = Color(0xFF2DD4A8);
-  static const Color backgroundColor = Color(0xFF071A20);
-  static const Color cardColor = Color(0xFF0D2931);
-  static const Color errorColor = Color(0xFFF16067);
+  static const Color primaryColor = Colors.white;
+  static const Color backgroundColor = Color(0xFF0B0B0B);
+  static const Color cardColor = Color(0xFF141414);
+  static const Color errorColor = Colors.white;
 
+  // All roles stay neutral, including status, fixed and elevated surfaces.
   static const _lightScheme = ColorScheme(
     brightness: Brightness.light,
-    primary: Color(0xFF086F68),
+    primary: Colors.black,
     onPrimary: Colors.white,
-    primaryContainer: Color(0xFFD4F0E9),
-    onPrimaryContainer: Color(0xFF063D39),
-    secondary: Color(0xFFB85F38),
+    primaryContainer: Color(0xFFEFEFEF),
+    onPrimaryContainer: Colors.black,
+    primaryFixed: Color(0xFFE4E4E4),
+    primaryFixedDim: Color(0xFFCCCCCC),
+    onPrimaryFixed: Colors.black,
+    onPrimaryFixedVariant: Color(0xFF454545),
+    secondary: Colors.black,
     onSecondary: Colors.white,
-    secondaryContainer: Color(0xFFFFDBCA),
-    onSecondaryContainer: Color(0xFF5B2816),
-    tertiary: Color(0xFF376B87),
+    secondaryContainer: Color(0xFFEFEFEF),
+    onSecondaryContainer: Colors.black,
+    secondaryFixed: Color(0xFFE4E4E4),
+    secondaryFixedDim: Color(0xFFCCCCCC),
+    onSecondaryFixed: Colors.black,
+    onSecondaryFixedVariant: Color(0xFF454545),
+    tertiary: Colors.black,
     onTertiary: Colors.white,
-    tertiaryContainer: Color(0xFFD1E9F7),
-    onTertiaryContainer: Color(0xFF173F55),
-    error: Color(0xFFC84C55),
+    tertiaryContainer: Color(0xFFEFEFEF),
+    onTertiaryContainer: Colors.black,
+    tertiaryFixed: Color(0xFFE4E4E4),
+    tertiaryFixedDim: Color(0xFFCCCCCC),
+    onTertiaryFixed: Colors.black,
+    onTertiaryFixedVariant: Color(0xFF454545),
+    error: Colors.black,
     onError: Colors.white,
-    errorContainer: Color(0xFFFFDADD),
-    onErrorContainer: Color(0xFF6B1F29),
-    surface: Color(0xFFF4F7F5),
-    onSurface: Color(0xFF15312F),
-    surfaceContainerHighest: Color(0xFFE5ECE8),
-    onSurfaceVariant: Color(0xFF596C68),
-    outline: Color(0xFF9AA9A5),
-    outlineVariant: Color(0xFFD4DEDA),
-    shadow: Color(0xFF12312B),
+    errorContainer: Color(0xFFEFEFEF),
+    onErrorContainer: Colors.black,
+    surface: Color(0xFFF7F7F7),
+    onSurface: Color(0xFF111111),
+    surfaceDim: Color(0xFFE5E5E5),
+    surfaceBright: Colors.white,
+    surfaceContainerLowest: Colors.white,
+    surfaceContainerLow: Color(0xFFF5F5F5),
+    surfaceContainer: Color(0xFFF0F0F0),
+    surfaceContainerHigh: Color(0xFFEAEAEA),
+    surfaceContainerHighest: Color(0xFFE4E4E4),
+    onSurfaceVariant: Color(0xFF595959),
+    outline: Color(0xFF737373),
+    outlineVariant: Color(0xFFDDDDDD),
+    shadow: Colors.black,
     scrim: Colors.black,
-    inverseSurface: Color(0xFF213A36),
-    onInverseSurface: Color(0xFFF0F7F4),
-    inversePrimary: Color(0xFF69DDCB),
+    inverseSurface: Color(0xFF202020),
+    onInverseSurface: Colors.white,
+    inversePrimary: Colors.white,
+    surfaceTint: Colors.transparent,
   );
 
   static const _darkScheme = ColorScheme(
     brightness: Brightness.dark,
-    primary: Color(0xFF2DD4A8),
-    onPrimary: Color(0xFF00382E),
-    primaryContainer: Color(0xFF155B4D),
-    onPrimaryContainer: Color(0xFFB8F5E3),
-    secondary: Color(0xFFFFB07C),
-    onSecondary: Color(0xFF552407),
-    secondaryContainer: Color(0xFF703818),
-    onSecondaryContainer: Color(0xFFFFDBC6),
-    tertiary: Color(0xFF66A9FF),
-    onTertiary: Color(0xFF00315D),
-    tertiaryContainer: Color(0xFF164B75),
-    onTertiaryContainer: Color(0xFFCFE5FF),
-    error: Color(0xFFF16067),
-    onError: Color(0xFF450008),
-    errorContainer: Color(0xFF721B25),
-    onErrorContainer: Color(0xFFFFDADD),
-    surface: Color(0xFF071A20),
-    onSurface: Color(0xFFE7F2EF),
-    surfaceContainerHighest: Color(0xFF173940),
-    onSurfaceVariant: Color(0xFFB6C9C5),
-    outline: Color(0xFF708985),
-    outlineVariant: Color(0xFF2D4B4D),
+    primary: Colors.white,
+    onPrimary: Colors.black,
+    primaryContainer: Color(0xFF222222),
+    onPrimaryContainer: Colors.white,
+    primaryFixed: Color(0xFFE4E4E4),
+    primaryFixedDim: Color(0xFFCCCCCC),
+    onPrimaryFixed: Colors.black,
+    onPrimaryFixedVariant: Color(0xFF454545),
+    secondary: Colors.white,
+    onSecondary: Colors.black,
+    secondaryContainer: Color(0xFF222222),
+    onSecondaryContainer: Colors.white,
+    secondaryFixed: Color(0xFFE4E4E4),
+    secondaryFixedDim: Color(0xFFCCCCCC),
+    onSecondaryFixed: Colors.black,
+    onSecondaryFixedVariant: Color(0xFF454545),
+    tertiary: Colors.white,
+    onTertiary: Colors.black,
+    tertiaryContainer: Color(0xFF222222),
+    onTertiaryContainer: Colors.white,
+    tertiaryFixed: Color(0xFFE4E4E4),
+    tertiaryFixedDim: Color(0xFFCCCCCC),
+    onTertiaryFixed: Colors.black,
+    onTertiaryFixedVariant: Color(0xFF454545),
+    error: Colors.white,
+    onError: Colors.black,
+    errorContainer: Color(0xFF222222),
+    onErrorContainer: Colors.white,
+    surface: backgroundColor,
+    onSurface: Color(0xFFF5F5F5),
+    surfaceDim: backgroundColor,
+    surfaceBright: Color(0xFF333333),
+    surfaceContainerLowest: Colors.black,
+    surfaceContainerLow: cardColor,
+    surfaceContainer: Color(0xFF1A1A1A),
+    surfaceContainerHigh: Color(0xFF242424),
+    surfaceContainerHighest: Color(0xFF303030),
+    onSurfaceVariant: Color(0xFFB8B8B8),
+    outline: Color(0xFF8A8A8A),
+    outlineVariant: Color(0xFF383838),
     shadow: Colors.black,
     scrim: Colors.black,
-    inverseSurface: Color(0xFFDCEAE6),
-    onInverseSurface: Color(0xFF17312F),
-    inversePrimary: Color(0xFF086F68),
+    inverseSurface: Color(0xFFEAEAEA),
+    onInverseSurface: Colors.black,
+    inversePrimary: Colors.black,
+    surfaceTint: Colors.transparent,
   );
 
   static ThemeData get lightTheme => _theme(_lightScheme);
@@ -82,6 +121,7 @@ class AppTheme {
       colorScheme: scheme,
       scaffoldBackgroundColor: scheme.surface,
       canvasColor: scheme.surface,
+      applyElevationOverlayColor: false,
     );
     final textTheme = base.textTheme.copyWith(
       displayLarge: base.textTheme.displayLarge?.copyWith(
@@ -101,7 +141,7 @@ class AppTheme {
         letterSpacing: -0.5,
       ),
       titleLarge: base.textTheme.titleLarge?.copyWith(
-        fontWeight: FontWeight.w700,
+        fontWeight: FontWeight.w600,
       ),
       titleMedium: base.textTheme.titleMedium?.copyWith(
         fontWeight: FontWeight.w600,
@@ -109,15 +149,16 @@ class AppTheme {
       bodyLarge: base.textTheme.bodyLarge?.copyWith(height: 1.45),
       bodyMedium: base.textTheme.bodyMedium?.copyWith(height: 1.4),
       labelLarge: base.textTheme.labelLarge?.copyWith(
-        fontWeight: FontWeight.w700,
-        letterSpacing: 0.2,
+        fontWeight: FontWeight.w600,
+        letterSpacing: 0,
       ),
     );
 
     return base.copyWith(
       textTheme: textTheme,
       appBarTheme: AppBarTheme(
-        backgroundColor: Colors.transparent,
+        backgroundColor: scheme.surface,
+        surfaceTintColor: Colors.transparent,
         foregroundColor: scheme.onSurface,
         elevation: 0,
         scrolledUnderElevation: 0,
@@ -125,19 +166,29 @@ class AppTheme {
         titleTextStyle: textTheme.titleLarge?.copyWith(color: scheme.onSurface),
       ),
       cardTheme: CardThemeData(
-        color: dark ? const Color(0xFF0D2931) : Colors.white,
+        color: dark ? cardColor : Colors.white,
+        surfaceTintColor: Colors.transparent,
         elevation: 0,
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(24),
-          side: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.8)),
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: scheme.outlineVariant),
         ),
       ),
       navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: dark ? const Color(0xFF0A232A) : Colors.white,
+        backgroundColor: dark ? cardColor : Colors.white,
+        surfaceTintColor: Colors.transparent,
         elevation: 0,
         height: 72,
-        indicatorColor: scheme.primaryContainer,
+        indicatorColor: scheme.primary,
+        iconTheme: WidgetStateProperty.resolveWith(
+          (states) => IconThemeData(
+            color: states.contains(WidgetState.selected)
+                ? scheme.onPrimary
+                : scheme.onSurfaceVariant,
+            size: 24,
+          ),
+        ),
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           return textTheme.labelMedium?.copyWith(
             color: states.contains(WidgetState.selected)
@@ -157,7 +208,7 @@ class AppTheme {
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
           elevation: 0,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(12),
           ),
           textStyle: textTheme.labelLarge,
         ),
@@ -167,9 +218,9 @@ class AppTheme {
           foregroundColor: scheme.primary,
           minimumSize: const Size(48, 52),
           padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 13),
-          side: BorderSide(color: scheme.outlineVariant),
+          side: BorderSide(color: scheme.outline),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(12),
           ),
           textStyle: textTheme.labelLarge,
         ),
@@ -178,9 +229,37 @@ class AppTheme {
         style: TextButton.styleFrom(
           minimumSize: const Size(48, 48),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(12),
           ),
           textStyle: textTheme.labelLarge,
+        ),
+      ),
+      segmentedButtonTheme: SegmentedButtonThemeData(
+        style: ButtonStyle(
+          backgroundColor: WidgetStateProperty.resolveWith(
+            (states) => states.contains(WidgetState.selected)
+                ? scheme.primary
+                : Colors.transparent,
+          ),
+          foregroundColor: WidgetStateProperty.resolveWith(
+            (states) => states.contains(WidgetState.selected)
+                ? scheme.onPrimary
+                : scheme.onSurface,
+          ),
+          minimumSize: const WidgetStatePropertyAll(Size(48, 48)),
+          side: WidgetStatePropertyAll(BorderSide(color: scheme.outline)),
+          shape: WidgetStatePropertyAll(
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+          textStyle: WidgetStatePropertyAll(textTheme.labelLarge),
+        ),
+      ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: dark ? cardColor : Colors.white,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: scheme.outlineVariant),
         ),
       ),
       dividerTheme: DividerThemeData(color: scheme.outlineVariant),
@@ -188,7 +267,7 @@ class AppTheme {
         behavior: SnackBarBehavior.floating,
         backgroundColor: scheme.inverseSurface,
         contentTextStyle: TextStyle(color: scheme.onInverseSurface),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
     );
   }

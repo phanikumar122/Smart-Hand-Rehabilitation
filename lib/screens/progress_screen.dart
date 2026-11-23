@@ -216,17 +216,7 @@ class _TrendCard extends StatelessWidget {
                     barWidth: 3,
                     isStrokeCapRound: true,
                     dotData: const FlDotData(show: false),
-                    belowBarData: BarAreaData(
-                      show: true,
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          tone.withValues(alpha: 0.25),
-                          tone.withValues(alpha: 0.01),
-                        ],
-                      ),
-                    ),
+                    belowBarData: BarAreaData(show: false),
                   ),
                 ],
                 titlesData: FlTitlesData(

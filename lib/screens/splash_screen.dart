@@ -46,17 +46,7 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: DecoratedBox(
-        decoration: BoxDecoration(
-          gradient: RadialGradient(
-            center: const Alignment(0, -0.2),
-            radius: 0.85,
-            colors: [
-              Theme.of(context).colorScheme.primary.withValues(alpha: 0.14),
-              Theme.of(context).colorScheme.surface,
-            ],
-          ),
-        ),
+      body: SafeArea(
         child: Center(
           child: FadeTransition(
             opacity: _fadeAnimation,
@@ -69,17 +59,13 @@ class _SplashScreenState extends State<SplashScreen>
                     width: 112,
                     height: 112,
                     decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.primaryContainer,
-                      borderRadius: BorderRadius.circular(36),
-                      border: Border.all(
-                        color: Theme.of(context).colorScheme.primary
-                            .withValues(alpha: 0.3),
-                      ),
+                      color: Theme.of(context).colorScheme.primary,
+                      borderRadius: BorderRadius.circular(24),
                     ),
                     child: Icon(
                       Icons.front_hand_rounded,
                       size: 56,
-                      color: Theme.of(context).colorScheme.primary,
+                      color: Theme.of(context).colorScheme.onPrimary,
                     ),
                   ),
                   const SizedBox(height: 28),
@@ -92,8 +78,8 @@ class _SplashScreenState extends State<SplashScreen>
                   Text(
                     'SMART REHABILITATION',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.primary,
-                      letterSpacing: 3.2,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      letterSpacing: 2,
                     ),
                   ),
                 ],

@@ -49,9 +49,9 @@ class AppPageHeader extends StatelessWidget {
         Text(
           eyebrow.toUpperCase(),
           style: Theme.of(context).textTheme.labelMedium?.copyWith(
-            color: colors.primary,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 1.8,
+            color: colors.onSurfaceVariant,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 1.2,
           ),
         ),
         const SizedBox(height: 6),
@@ -70,7 +70,7 @@ class AppPageHeader extends StatelessWidget {
       builder: (context, constraints) {
         final stack =
             MediaQuery.textScalerOf(context).scale(16) > 24 ||
-            constraints.maxWidth < 340;
+            constraints.maxWidth < (trailing is IconButton ? 280 : 340);
         if (stack && trailing != null) {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -113,7 +113,7 @@ class ClinicalCard extends StatelessWidget {
     clipBehavior: Clip.antiAlias,
     child: InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(24),
+      borderRadius: BorderRadius.circular(16),
       child: Padding(padding: padding, child: child),
     ),
   );
@@ -133,13 +133,14 @@ class StatusPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = tone ?? Theme.of(context).colorScheme.primary;
+    final colors = Theme.of(context).colorScheme;
+    final color = tone ?? colors.onSurface;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
+        color: colors.surfaceContainerLow,
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
+        border: Border.all(color: colors.outlineVariant),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -217,8 +218,9 @@ class MetricTile extends StatelessWidget {
       constraints: const BoxConstraints(minHeight: 112),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: colors.surfaceContainerHighest.withValues(alpha: 0.4),
-        borderRadius: BorderRadius.circular(18),
+        color: colors.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: colors.outlineVariant),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -273,7 +275,7 @@ class EmptyState extends StatelessWidget {
                   height: 64,
                   decoration: BoxDecoration(
                     color: colors.primaryContainer,
-                    shape: BoxShape.circle,
+                    borderRadius: BorderRadius.circular(16),
                   ),
                   child: Icon(icon, size: 30, color: colors.primary),
                 ),

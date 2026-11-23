@@ -28,9 +28,9 @@ class TodayScreen extends StatelessWidget {
             SliverToBoxAdapter(
               child: AppPageHeader(
                 eyebrow: 'Smart Glove App · Today',
-                title: 'Your recovery, in motion',
+                title: 'Your recovery',
                 subtitle:
-                    'Small, consistent sessions create meaningful progress.',
+                    'Track movement and manage your rehabilitation sessions.',
                 trailing: IconButton.filledTonal(
                   tooltip: 'Settings',
                   icon: const Icon(Icons.tune_rounded),
@@ -46,7 +46,6 @@ class TodayScreen extends StatelessWidget {
               child: StaggeredReveal(
                 index: 0,
                 child: ClinicalCard(
-                  color: colors.primaryContainer,
                   padding: const EdgeInsets.all(24),
                   child: LayoutBuilder(
                     builder: (context, constraints) {
@@ -66,7 +65,7 @@ class TodayScreen extends StatelessWidget {
                                 ? 'Session in progress'
                                 : 'Ready for today’s session?',
                             style: Theme.of(context).textTheme.headlineSmall
-                                ?.copyWith(color: colors.onPrimaryContainer),
+                                ?.copyWith(color: colors.onSurface),
                           ),
                           const SizedBox(height: 8),
                           Text(
@@ -76,11 +75,7 @@ class TodayScreen extends StatelessWidget {
                                 ? 'Your glove is live and ready to record movement.'
                                 : 'Waiting for a fresh sensor reading from your glove.',
                             style: Theme.of(context).textTheme.bodyMedium
-                                ?.copyWith(
-                                  color: colors.onPrimaryContainer.withValues(
-                                    alpha: 0.78,
-                                  ),
-                                ),
+                                ?.copyWith(color: colors.onSurfaceVariant),
                           ),
                         ],
                       );
@@ -131,36 +126,58 @@ class TodayScreen extends StatelessWidget {
                         caption: 'System Status · Finger Bending Angles',
                       ),
                       const SizedBox(height: 18),
-                      GridView.count(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        crossAxisCount: MediaQuery.sizeOf(context).width > 600
-                            ? 3
-                            : 2,
-                        childAspectRatio: 1.45,
-                        mainAxisSpacing: 10,
-                        crossAxisSpacing: 10,
-                        children: [
-                          MetricTile(
-                            label: 'Average mobility',
-                            value: average == null ? '--' : '$average°',
-                            icon: Icons.gesture_rounded,
-                          ),
-                          MetricTile(
-                            label: 'Grip Force · raw (0–1023)',
-                            value: data?.grip.toString() ?? '--',
-                            icon: Icons.back_hand_outlined,
-                            tone: colors.secondary,
-                          ),
-                          MetricTile(
-                            label: 'Glove',
-                            value:
-                                provider.connectedDevice?.displayName ??
-                                'Connected',
-                            icon: Icons.bluetooth_connected_rounded,
-                            tone: colors.tertiary,
-                          ),
-                        ],
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          final largeText =
+                              MediaQuery.textScalerOf(context).scale(16) > 24;
+                          final columns =
+                              largeText || constraints.maxWidth < 280
+                              ? 1
+                              : constraints.maxWidth >= 600
+                              ? 3
+                              : 2;
+                          final width =
+                              (constraints.maxWidth - (columns - 1) * 12) /
+                              columns;
+                          final metrics = [
+                            MetricTile(
+                              label: 'Average mobility',
+                              value: average == null ? '--' : '$average°',
+                              icon: Icons.gesture_rounded,
+                            ),
+                            MetricTile(
+                              label: 'Grip Force · raw (0–1023)',
+                              value: data?.grip.toString() ?? '--',
+                              icon: Icons.back_hand_outlined,
+                              tone: colors.secondary,
+                            ),
+                            MetricTile(
+                              label: 'Glove',
+                              value:
+                                  provider.connectedDevice?.displayName ??
+                                  'Connected',
+                              icon: Icons.bluetooth_connected_rounded,
+                              tone: colors.tertiary,
+                            ),
+                          ];
+                          return Wrap(
+                            spacing: 12,
+                            runSpacing: 12,
+                            children: [
+                              for (
+                                var index = 0;
+                                index < metrics.length;
+                                index++
+                              )
+                                SizedBox(
+                                  width: columns == 2 && index == 2
+                                      ? constraints.maxWidth
+                                      : width,
+                                  child: metrics[index],
+                                ),
+                            ],
+                          );
+                        },
                       ),
                       if (data == null) ...[
                         const SizedBox(height: 14),

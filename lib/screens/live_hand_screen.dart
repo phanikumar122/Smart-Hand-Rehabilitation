@@ -150,16 +150,9 @@ class _FingerBadge extends StatelessWidget {
       constraints: const BoxConstraints(minWidth: 54),
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
       decoration: BoxDecoration(
-        color: colors.surface.withValues(alpha: 0.94),
-        borderRadius: BorderRadius.circular(14),
+        color: colors.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(color: colors.outlineVariant),
-        boxShadow: [
-          BoxShadow(
-            color: colors.shadow.withValues(alpha: 0.1),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -204,11 +197,6 @@ class _HandPainter extends CustomPainter {
     final h = size.height;
     final center = Offset(w * 0.5, h * 0.63);
     final pressure = (grip / 1023).clamp(0.0, 1.0);
-    final glowPaint = Paint()
-      ..color = secondary.withValues(alpha: 0.08 + pressure * 0.16)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 24);
-    canvas.drawCircle(center, w * (0.13 + pressure * 0.11), glowPaint);
-
     final hand = Path()
       ..moveTo(w * 0.32, h * 0.88)
       ..cubicTo(w * 0.28, h * 0.74, w * 0.26, h * 0.62, w * 0.2, h * 0.55)
@@ -227,7 +215,7 @@ class _HandPainter extends CustomPainter {
       ..lineTo(w * 0.76, h * 0.55)
       ..cubicTo(w * 0.72, h * 0.65, w * 0.68, h * 0.74, w * 0.66, h * 0.88)
       ..close();
-    canvas.drawPath(hand, Paint()..color = surface.withValues(alpha: 0.7));
+    canvas.drawPath(hand, Paint()..color = surface);
     canvas.drawPath(
       hand,
       Paint()
@@ -235,6 +223,30 @@ class _HandPainter extends CustomPainter {
         ..style = PaintingStyle.stroke
         ..strokeWidth = 2.2,
     );
+
+    // A flat ring communicates grip without a decorative glow.
+    final pressureRing = Rect.fromCircle(center: center, radius: w * 0.13);
+    canvas.drawCircle(
+      center,
+      w * 0.13,
+      Paint()
+        ..color = outline
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 4,
+    );
+    if (data != null) {
+      canvas.drawArc(
+        pressureRing,
+        -math.pi / 2,
+        math.pi * 2 * pressure,
+        false,
+        Paint()
+          ..color = secondary
+          ..style = PaintingStyle.stroke
+          ..strokeCap = StrokeCap.round
+          ..strokeWidth = 4,
+      );
+    }
 
     final values = data == null
         ? <int>[0, 0, 0, 0, 0]

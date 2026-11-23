@@ -20,42 +20,58 @@ class SettingsScreen extends StatelessWidget {
           children: [
             const AppPageHeader(
               eyebrow: 'Preferences',
-              title: 'Make Smart Glove App yours',
+              title: 'App settings',
               subtitle:
                   'Adjust appearance, connection behavior, and your data.',
             ),
             const SizedBox(height: 24),
             const SectionHeader(
               title: 'Appearance',
-              caption: 'Choose how the app feels',
+              caption: 'Black-and-white themes',
             ),
             const SizedBox(height: 10),
             ClinicalCard(
               child: AnimatedBuilder(
                 animation: AppThemeController.instance,
-                builder: (context, _) => SegmentedButton<ThemeMode>(
-                  segments: const [
-                    ButtonSegment(
-                      value: ThemeMode.system,
-                      icon: Icon(Icons.brightness_auto_rounded),
-                      label: Text('System'),
-                    ),
-                    ButtonSegment(
-                      value: ThemeMode.light,
-                      icon: Icon(Icons.light_mode_rounded),
-                      label: Text('Light'),
-                    ),
-                    ButtonSegment(
-                      value: ThemeMode.dark,
-                      icon: Icon(Icons.dark_mode_rounded),
-                      label: Text('Dark'),
-                    ),
-                  ],
-                  selected: {AppThemeController.instance.mode},
-                  showSelectedIcon: false,
-                  onSelectionChanged: (value) =>
-                      AppThemeController.instance.setMode(value.first),
-                ),
+                builder: (context, _) {
+                  final controller = AppThemeController.instance;
+                  final labels = {
+                    ThemeMode.system: 'System',
+                    ThemeMode.light: 'Light',
+                    ThemeMode.dark: 'Dark',
+                  };
+                  if (MediaQuery.textScalerOf(context).scale(14) > 21) {
+                    return Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        for (final entry in labels.entries)
+                          ChoiceChip(
+                            label: Text(entry.value),
+                            selected: controller.mode == entry.key,
+                            onSelected: (_) => controller.setMode(entry.key),
+                          ),
+                      ],
+                    );
+                  }
+                  return SegmentedButton<ThemeMode>(
+                    segments: const [
+                      ButtonSegment(
+                        value: ThemeMode.system,
+                        label: Text('System'),
+                      ),
+                      ButtonSegment(
+                        value: ThemeMode.light,
+                        label: Text('Light'),
+                      ),
+                      ButtonSegment(value: ThemeMode.dark, label: Text('Dark')),
+                    ],
+                    selected: {controller.mode},
+                    showSelectedIcon: false,
+                    onSelectionChanged: (value) =>
+                        controller.setMode(value.first),
+                  );
+                },
               ),
             ),
             const SizedBox(height: 24),
