@@ -1,6 +1,4 @@
-# NerveLink — Smart Hand Rehabilitation
-
-NerveLink is an Android-focused rehabilitation system that combines a sensor glove with a Flutter companion app. Five flex sensors measure finger bend, an FSR measures grip pressure, five vibration motors provide haptic feedback, and an HC-05/HC-06 Bluetooth Classic module links the glove to the phone.
+# Smart Hand Rehabilitation
 
 The app provides live biofeedback, guided recording sessions, progress charts, local session history, and direct haptic controls in an accessible light/dark interface.
 
