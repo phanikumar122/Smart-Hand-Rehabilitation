@@ -7,7 +7,7 @@ import 'package:flutter_classic_bluetooth/flutter_classic_bluetooth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/sensor_data.dart';
-import '../models/session.dart';
+import '../models/rehab_session.dart';
 import '../services/glove_connection.dart';
 import '../services/storage_service.dart';
 

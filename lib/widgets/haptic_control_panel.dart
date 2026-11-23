@@ -2,14 +2,15 @@ import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/glove_data_provider.dart';
+import '../widgets/app_components.dart';
 
-class VibrationPanel extends StatefulWidget {
-  const VibrationPanel({super.key});
+class HapticControlPanel extends StatefulWidget {
+  const HapticControlPanel({super.key});
   @override
-  State<VibrationPanel> createState() => _VibrationPanelState();
+  State<HapticControlPanel> createState() => _HapticControlPanelState();
 }
 
-class _VibrationPanelState extends State<VibrationPanel> {
+class _HapticControlPanelState extends State<HapticControlPanel> {
   final List<bool?> _requested = List.filled(5, null);
   bool _sending = false;
   String? _error;
@@ -47,9 +48,9 @@ class _VibrationPanelState extends State<VibrationPanel> {
   @override
   Widget build(BuildContext context) {
     final enabled = context.watch<GloveDataProvider>().isConnected && !_sending;
-    return Card(
+    return ClinicalCard(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.zero,
         child: Column(
           children: [
             Text(
@@ -75,8 +76,10 @@ class _VibrationPanelState extends State<VibrationPanel> {
               ],
             ),
             if (_sending) const LinearProgressIndicator(),
-            for (var i = 0; i < 5; i++)
+            for (var i = 0; i < 5; i++) ...[
+              if (i > 0) const Divider(height: 1),
               SwitchListTile(
+                contentPadding: EdgeInsets.zero,
                 title: Text(_fingers[i]),
                 subtitle: Text(
                   _requested[i] == null
@@ -88,6 +91,7 @@ class _VibrationPanelState extends State<VibrationPanel> {
                 value: _requested[i] ?? false,
                 onChanged: enabled ? (value) => _send(value, i + 1) : null,
               ),
+            ],
             if (_error != null)
               Text(_error!, style: const TextStyle(color: Colors.redAccent)),
           ],

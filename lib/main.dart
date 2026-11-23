@@ -3,9 +3,11 @@ import 'package:provider/provider.dart';
 
 import 'providers/glove_data_provider.dart';
 import 'screens/splash_screen.dart';
-import 'utils/theme.dart';
+import 'theme/app_theme.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await AppThemeController.instance.load();
   runApp(
     MultiProvider(
       providers: [ChangeNotifierProvider(create: (_) => GloveDataProvider())],
@@ -18,12 +20,15 @@ class SmartGloveApp extends StatelessWidget {
   const SmartGloveApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Smart Assistive Glove',
+  Widget build(BuildContext context) => AnimatedBuilder(
+    animation: AppThemeController.instance,
+    builder: (context, _) => MaterialApp(
+      title: 'NerveLink',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.darkTheme,
+      theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.darkTheme,
+      themeMode: AppThemeController.instance.mode,
       home: const SplashScreen(),
-    );
-  }
+    ),
+  );
 }

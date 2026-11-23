@@ -1,6 +1,6 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../models/session.dart';
+import '../models/rehab_session.dart';
 
 class StorageService {
   static const String _sessionsKey = 'rehab_sessions';

@@ -7,13 +7,13 @@ import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:smart_glove_app/providers/glove_data_provider.dart';
-import 'package:smart_glove_app/screens/bluetooth_screen.dart';
-import 'package:smart_glove_app/screens/charts_screen.dart';
-import 'package:smart_glove_app/screens/dashboard_screen.dart';
-import 'package:smart_glove_app/screens/hand_viz_screen.dart';
-import 'package:smart_glove_app/screens/main_wrapper.dart';
+import 'package:smart_glove_app/screens/connection_screen.dart';
+import 'package:smart_glove_app/screens/progress_screen.dart';
+import 'package:smart_glove_app/screens/today_screen.dart';
+import 'package:smart_glove_app/screens/live_hand_screen.dart';
+import 'package:smart_glove_app/screens/app_shell.dart';
 import 'package:smart_glove_app/screens/session_screen.dart';
-import 'package:smart_glove_app/widgets/vibration_panel.dart';
+import 'package:smart_glove_app/widgets/haptic_control_panel.dart';
 
 import 'support/bluetooth_radio.dart';
 import 'support/serial_link.dart';
@@ -60,9 +60,9 @@ void main() {
   testWidgets('connection gate has no bypass and scanning starts only on tap', (
     tester,
   ) async {
-    await tester.pumpWidget(app(const MainWrapper()));
+    await tester.pumpWidget(app(const AppShell()));
     await tester.pumpAndSettle();
-    expect(find.byType(BluetoothScreen), findsOneWidget);
+    expect(find.byType(ConnectionScreen), findsOneWidget);
     expect(find.text('Live Dashboard'), findsNothing);
     expect(radio.scans, 0);
     expect(radio.permissionRequests.first, {
@@ -83,9 +83,9 @@ void main() {
     tester,
   ) async {
     for (final screen in [
-      const DashboardScreen(),
-      const HandVizScreen(),
-      const ChartsScreen(),
+      const TodayScreen(),
+      const LiveHandScreen(),
+      const ProgressScreen(),
       const SessionScreen(),
     ]) {
       await tester.pumpWidget(app(screen));
@@ -95,6 +95,22 @@ void main() {
       expect(find.text('Grip: 0'), findsNothing);
       expect(tester.takeException(), isNull);
     }
+    await tester.pumpWidget(const SizedBox());
+  });
+  testWidgets('connected shell exposes four focused destinations', (
+    tester,
+  ) async {
+    await tester.runAsync(() => provider.connectToDevice(device));
+    await tester.pumpWidget(app(const AppShell()));
+    await tester.pumpAndSettle();
+    expect(find.byType(NavigationDestination), findsNWidgets(4));
+    for (final label in ['Today', 'Live', 'Session', 'Progress']) {
+      expect(find.text(label), findsOneWidget);
+    }
+    await tester.tap(find.text('Progress'));
+    await tester.pumpAndSettle();
+    expect(find.text('Live trends'), findsOneWidget);
+    expect(find.text('Sessions'), findsOneWidget);
     await tester.pumpWidget(const SizedBox());
   });
   testWidgets(
@@ -116,7 +132,7 @@ void main() {
       await tester.tap(find.text('Start Session'));
       await tester.pump();
       expect(provider.isSessionActive, isTrue);
-      await tester.pumpWidget(app(const HandVizScreen()));
+      await tester.pumpWidget(app(const LiveHandScreen()));
       now = now.add(const Duration(seconds: 3));
       await tester.pump(const Duration(seconds: 3));
       await tester.pumpWidget(app(const SessionScreen()));
@@ -135,12 +151,12 @@ void main() {
     receive('10,20,30,40,50,600\n');
     now = now.add(const Duration(milliseconds: 100));
     receive('20,30,40,50,60,700\n');
-    await tester.pumpWidget(app(const ChartsScreen()));
+    await tester.pumpWidget(app(const ProgressScreen()));
     await tester.pumpAndSettle();
     expect(find.text('No signal'), findsNothing);
     expect(tester.takeException(), isNull);
     now = now.add(const Duration(seconds: 2));
-    await tester.pumpWidget(app(const ChartsScreen(), textScale: 1.1));
+    await tester.pumpWidget(app(const ProgressScreen(), textScale: 1.1));
     await tester.pump();
     expect(find.text('No signal'), findsOneWidget);
     await tester.pumpWidget(const SizedBox());
@@ -148,7 +164,7 @@ void main() {
   testWidgets(
     'vibration controls disable without connection and send exact bytes',
     (tester) async {
-      await tester.pumpWidget(app(const Scaffold(body: VibrationPanel())));
+      await tester.pumpWidget(app(const Scaffold(body: HapticControlPanel())));
       expect(
         tester
             .widget<ElevatedButton>(
@@ -176,10 +192,10 @@ void main() {
         tester.view.physicalSize = size;
         tester.view.devicePixelRatio = 1;
         for (final screen in [
-          const DashboardScreen(),
+          const TodayScreen(),
           const SessionScreen(),
-          const HandVizScreen(),
-          const BluetoothScreen(),
+          const LiveHandScreen(),
+          const ConnectionScreen(),
         ]) {
           await tester.pumpWidget(app(screen, textScale: 2));
           await tester.pump();

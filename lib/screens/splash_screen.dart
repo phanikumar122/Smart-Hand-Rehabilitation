@@ -1,7 +1,6 @@
 import 'package:material_ui/material_ui.dart';
 
-import '../utils/theme.dart';
-import 'bluetooth_screen.dart';
+import 'connection_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -20,16 +19,19 @@ class _SplashScreenState extends State<SplashScreen>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 2),
+      duration: const Duration(milliseconds: 900),
     );
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(_controller);
+    _fadeAnimation = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeOutCubic,
+    );
 
     _controller.forward();
 
-    Future.delayed(const Duration(seconds: 3), () {
+    Future.delayed(const Duration(milliseconds: 1500), () {
       if (mounted) {
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const BluetoothScreen()),
+          MaterialPageRoute(builder: (_) => const ConnectionScreen()),
         );
       }
     });
@@ -44,30 +46,59 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Center(
-        child: FadeTransition(
-          opacity: _fadeAnimation,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(
-                Icons.front_hand_rounded,
-                size: 100,
-                color: AppTheme.primaryColor,
-              ),
-              const SizedBox(height: 20),
-              Text(
-                'NerveLink',
-                style: Theme.of(context).textTheme.headlineMedium
-                    ?.copyWith(fontWeight: FontWeight.bold, letterSpacing: 2),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                'SMART REHABILITATION',
-                style: Theme.of(context).textTheme.bodySmall
-                    ?.copyWith(color: AppTheme.primaryColor, letterSpacing: 4),
-              ),
+      body: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: RadialGradient(
+            center: const Alignment(0, -0.2),
+            radius: 0.85,
+            colors: [
+              Theme.of(context).colorScheme.primary.withValues(alpha: 0.14),
+              Theme.of(context).colorScheme.surface,
             ],
+          ),
+        ),
+        child: Center(
+          child: FadeTransition(
+            opacity: _fadeAnimation,
+            child: ScaleTransition(
+              scale: Tween(begin: 0.92, end: 1.0).animate(_fadeAnimation),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 112,
+                    height: 112,
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.primaryContainer,
+                      borderRadius: BorderRadius.circular(36),
+                      border: Border.all(
+                        color: Theme.of(context).colorScheme.primary
+                            .withValues(alpha: 0.3),
+                      ),
+                    ),
+                    child: Icon(
+                      Icons.front_hand_rounded,
+                      size: 56,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
+                  const SizedBox(height: 28),
+                  Text(
+                    'NerveLink',
+                    style: Theme.of(context).textTheme.headlineLarge
+                        ?.copyWith(letterSpacing: -1),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    'SMART REHABILITATION',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.primary,
+                      letterSpacing: 3.2,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
       ),
