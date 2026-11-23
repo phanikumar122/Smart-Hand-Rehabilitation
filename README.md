@@ -1,281 +1,83 @@
-# Smart Hand Rehabilitation
+# Smart Glove App — Smart Hand Rehabilitation
 
-The app provides live biofeedback, guided recording sessions, progress charts, local session history, and direct haptic controls in an accessible light/dark interface.
+Smart Glove App combines an Arduino Nano sensor glove and an Android Flutter app: five flex sensors, an FSR, five independently driven vibration motors, an SSD1306 OLED and HC-05/HC-06 Bluetooth Classic SPP.
 
-> **Project status:** Functional prototype. It is intended for learning, experimentation, and supervised rehabilitation research—not diagnosis or unsupervised medical treatment.
+**Status:** Engineering/research system with a coordinated 3.0 firmware protocol upgrade. Compilation and automated tests do not establish physical reliability, clinical accuracy or medical certification. Complete the bench and long-duration checks before describing this system as ready for deployment.
 
-## Highlights
+## Implemented behavior
 
-- Five-finger bend tracking from `0°` to `90°`
-- Grip pressure monitoring from `0` to `1023`
-- Bluetooth Classic SPP connection on Android
-- Live hand visualization and sensor detail
-- Guided rehabilitation sessions with elapsed time and reading count
-- Maximum grip and average movement summaries
-- Local session history using SharedPreferences
-- Finger-specific and all-hand haptic commands
-- Automatic reconnect option
-- Adaptive System / Light / Dark themes
-- Responsive layouts and large-text support
-- Stale-signal protection: old values are never presented as live data
+- One cached six-sensor snapshot, lightweight independent filtering and nominal 50 Hz acquisition.
+- Independent open/bent finger calibration; unloaded grip baseline; two-slot CRC-protected EEPROM persistence.
+- AUTO/MANUAL haptic separation, bounded continuous ON time, release/cooldown rearming and manual app-activity lease.
+- Strict bounded command parser and request-ID acknowledgements, errors and events.
+- Unchanged six-integer sensor frames at nominal 10 Hz; grip remains filtered ADC `0..1023`.
+- Incremental 128×64 OLED text without a 1024-byte framebuffer; movement and output state displayed independently.
+- App requested/confirmed output separation, retries/timeouts, guided calibration and firmware status.
+- Existing live-signal watchdog, measured history, recording metrics, local session storage, reconnection and accessible light/dark UI retained.
 
-## App navigation
+Finger values `0..90` are normalized sensor movement estimates, not independently validated joint angles. FSR ADC is not pressure/force in clinical units.
 
-| Destination | Purpose |
+## Guides
+
+| Guide | Contents |
 |---|---|
-| **Today** | Connection status, live summary, finger mobility, and session shortcut |
-| **Live** | Animated hand visualization, grip feedback, and individual sensor readings |
-| **Session** | Start/stop recording, timer, live grip, and reading count |
-| **Progress** | Live charts and saved rehabilitation sessions |
+| [Hardware](docs/HARDWARE_GUIDE.md) | Exact pin map, five protected drivers, supplies, component-selection calculations |
+| [Setup](docs/SETUP_GUIDE.md) | Flutter/Android setup, exact Nano compile/upload choices, running/installing the app |
+| [Calibration](docs/CALIBRATION_GUIDE.md) | Open/bent/save workflow, failure recovery, persistence and tuning |
+| [Protocol](docs/PROTOCOL.md) | Complete sensor, command, ACK/ERR/EVT formats and mode/safety semantics |
+| [Data flow](docs/DATA_FLOW.md) | Scheduling, memory, app lifecycle and session compatibility |
+| [Bench and soak tests](docs/BENCH_TEST_GUIDE.md) | Physical acceptance measurements and long-duration qualification |
 
-## Hardware
+## Requirements and development
 
-| Component | Quantity | Purpose |
-|---|---:|---|
-| Arduino Nano-compatible board | 1 | Reads sensors and runs glove firmware |
-| HC-05 or HC-06 | 1 | Bluetooth Classic serial communication |
-| Flex sensors | 5 | Thumb-to-pinky bend measurement |
-| Force-sensitive resistor (FSR) | 1 | Grip pressure measurement |
-| Vibration motors | 5 | Per-finger haptic feedback |
-| SSD1306 OLED, 128×64 | 1 | On-glove status display |
-| Driver transistors, flyback diodes, resistors | 5 sets | Safe motor switching |
-| Glove, wiring, and suitable power source | 1 set | Wearable assembly |
+Flutter 3.50.1 / Dart 3.14.0 (or compatible versions allowed by pubspec), Android SDK and Java 17, physical Android device API 24+, Arduino CLI/IDE with Arduino AVR core 1.8.6, Classic Nano/ATmega328P exposing A6/A7. Firmware depends only on core EEPROM, SoftwareSerial and Wire; Adafruit GFX/SSD1306 packages are no longer required.
 
-See [Hardware Guide](docs/HARDWARE_GUIDE.md) for the complete pin map, wiring notes, calibration flow, and safety guidance.
-
-## Bluetooth protocol
-
-### Glove → app
-
-The firmware sends one newline-terminated CSV frame every 100 ms:
-
-```text
-thumb,index,middle,ring,pinky,grip\n
-```
-
-Example:
-
-```text
-12,28,40,33,18,642
-```
-
-Validation rules:
-
-- Exactly six decimal integers
-- Each finger angle: `0..90`
-- Grip pressure: `0..1023`
-- Each frame ends with `\n`; `\r\n` is also accepted
-
-### App → glove
-
-Commands use start/end markers:
-
-```text
-<VIB:ALL,1>  # all motors on
-<VIB:ALL,0>  # all motors off
-<VIB:3,1>    # middle-finger motor on
-<VIB:3,0>    # middle-finger motor off
-```
-
-Finger IDs are `1` through `5`: Thumb, Index, Middle, Ring, Pinky.
-
-For buffering, validation, stale-data, reconnect, and session details, read [Data Flow](docs/DATA_FLOW.md).
-
-## Requirements
-
-- Flutter `3.50.1` or a compatible stable version
-- Dart `3.14.0` or a compatible version allowed by `pubspec.yaml`
-- Android Studio/SDK with Java 17
-- Android device running API 24 or newer
-- Data-capable USB cable for development
-- Paired HC-05/HC-06 glove for live hardware testing
-- Arduino IDE and the Adafruit GFX/SSD1306 libraries for firmware upload
-
-The mobile connection uses Bluetooth Classic and is designed for a physical Android device. Chrome and Windows are useful for limited UI development but cannot validate the real HC-05/HC-06 workflow.
-
-## Quick start
-
-### 1. Clone and install dependencies
-
-```bash
-git clone https://github.com/phanikumar122/Smart-Hand-Rehabilitation.git
-cd Smart-Hand-Rehabilitation
+```powershell
 flutter pub get
-```
-
-### 2. Verify the project
-
-```bash
-flutter doctor -v
+dart format lib test
 dart analyze lib test
 flutter test
+flutter build apk --debug
+arduino-cli core install arduino:avr@1.8.6
+arduino-cli compile --fqbn arduino:avr:nano:cpu=atmega328 --warnings all arduino/smart_glove
 ```
 
-### 3. Connect an Android phone
-
-1. Enable **Developer options** by tapping **Build number** seven times.
-2. Enable **USB debugging**.
-3. Connect the phone with a data-capable USB cable.
-4. Select **File transfer** and accept the debugging authorization prompt.
-5. Confirm detection:
+For an old-bootloader Nano, select `arduino:avr:nano:cpu=atmega328old`. Do not guess the bootloader or COM port; see the setup guide. Host firmware tests require Python 3 and a GNU-compatible C++ compiler:
 
 ```bash
+python3 arduino/tests/run_tests.py
+```
+
+On Windows with Ubuntu WSL and g++ installed, from this repository:
+
+```powershell
+wsl -d Ubuntu -- python3 arduino/tests/run_tests.py
+```
+
+APK output is `build/app/outputs/flutter-apk/app-debug.apk` (ignored by Git). Install/run:
+
+```powershell
+adb install -r build/app/outputs/flutter-apk/app-debug.apk
 flutter devices
-```
-
-### 4. Run the app
-
-```bash
 flutter run
 ```
 
-If multiple devices are available:
+## First connection
 
-```bash
-flutter run -d <device-id>
-```
+1. Verify the protected motor-driver circuits and power supply on the bench. Never power a motor directly from GPIO or assume the Nano regulator can supply five motors.
+2. Upload firmware and power the glove. Pins start OFF; valid stored calibration is loaded. There is no blind three-second startup baseline capture.
+3. Pair HC-05/HC-06 in Android settings and connect in Smart Glove App. Grant Bluetooth/Nearby devices permissions (and Location when required on older Android).
+4. In app Settings, confirm firmware status, capture open hand with unloaded FSR, capture comfortable bent hand and save.
+5. Wait for valid status and Live signal before recording. Use Manual mode for direct motor checks; release/OFF and wait after a timeout.
 
-For detailed setup and APK installation instructions, see [Setup Guide](docs/SETUP_GUIDE.md).
+Navigation remains Today, Live, Session and Progress; calibration/connection preferences are in Settings. Session summaries stay local in SharedPreferences with their existing schema. Nothing is uploaded to a server.
 
-## Build an APK
+## Compatibility and limitations
 
-Debug build:
+The sensor frame is still `thumb,index,middle,ring,pinky,grip\n`, with exactly six integers. Original VIB commands remain accepted and now select MANUAL. New commands use an optional request-ID envelope documented in the protocol guide.
 
-```bash
-flutter build apk --debug
-```
+Old app/new firmware: live sensor parsing and original VIB bytes continue working, but calibration must be performed through the upgraded app or a suitable SPP terminal. New app/old firmware: live signals parse, but legacy sessions/commands require explicit Settings legacy mode and remain unconfirmed. Lost ACKs never silently enable legacy mode.
 
-Output:
+SoftwareSerial is not full duplex. Firmware is cooperatively scheduled soft real-time; sensor transmission can be skipped for control traffic. Real timing, analog noise, supply behavior, motor temperatures, stack headroom and radio loss need assembled-glove measurements. AUTO haptics run locally; the manual lease detects app inactivity rather than the physical Bluetooth STATE pin. An ACK confirms firmware output state, not independently measured motor motion.
 
-```text
-build/app/outputs/flutter-apk/app-debug.apk
-```
-
-Install through ADB:
-
-```bash
-adb install -r build/app/outputs/flutter-apk/app-debug.apk
-```
-
-> Release builds currently use the debug signing configuration. Configure a private release keystore before distributing the app publicly.
-
-## Connect the glove
-
-1. Power the glove while keeping the hand flat during the three-second calibration.
-2. Pair the HC-05/HC-06 in Android Bluetooth settings. Common PINs are `1234` and `0000`.
-3. Open NerveLink and grant Nearby devices/Bluetooth permissions.
-4. Tap **Scan** or refresh paired devices.
-5. Select the glove and tap **Connect**.
-6. Wait for **Live signal** before starting a session.
-
-The app intentionally blocks rehabilitation sessions until a valid recent sensor packet is received.
-
-## Development commands
-
-```bash
-# Fetch dependencies
-flutter pub get
-
-# Format source and tests
-dart format lib test
-
-# Static analysis
-dart analyze lib test
-
-# Run every test
-flutter test
-
-# Build a debug Android package
-flutter build apk --debug
-```
-
-## Project structure
-
-```text
-Smart-Hand-Rehabilitation/
-├── android/                         # Android host project and permissions
-├── arduino/
-│   └── smart_glove/
-│       └── smart_glove.ino          # Glove firmware
-├── docs/
-│   ├── DATA_FLOW.md                 # Protocol and runtime state flow
-│   ├── HARDWARE_GUIDE.md            # Hardware, wiring, safety, calibration
-│   └── SETUP_GUIDE.md               # Flutter and phone installation setup
-├── lib/
-│   ├── models/                      # Sensor and saved-session models
-│   ├── providers/                   # Connection, parsing, and session state
-│   ├── screens/                     # Connection and four app destinations
-│   ├── services/                    # Bluetooth boundary and local storage
-│   ├── theme/                       # Adaptive clinical design system
-│   ├── widgets/                     # Reusable UI and haptic controls
-│   └── main.dart
-├── test/                            # Protocol, provider, and widget tests
-├── .gitignore
-├── pubspec.yaml
-└── README.md
-```
-
-## Architecture
-
-```text
-Flex sensors + FSR
-        │
-        ▼
-Arduino firmware ─────► OLED + vibration motors
-        │
-        │ newline-delimited CSV / Bluetooth Classic SPP
-        ▼
-GloveConnection service
-        │
-        ▼
-GloveDataProvider
-  ├── frame buffering and validation
-  ├── live/stale signal state
-  ├── reconnect lifecycle
-  ├── haptic commands
-  └── rehabilitation session metrics
-        │
-        ▼
-Flutter UI + local session storage
-```
-
-## Troubleshooting
-
-### Phone is not shown by `flutter devices`
-
-- Use a data-capable cable and select File transfer.
-- Keep the phone unlocked and accept the USB debugging prompt.
-- Revoke USB debugging authorizations and reconnect.
-- Install the manufacturer’s Windows USB driver if required.
-
-### Glove is paired but not listed
-
-- Grant Nearby devices permissions.
-- Enable Bluetooth and, on Android 11 or earlier, Location services.
-- Tap refresh after pairing in Android settings.
-- Confirm the module supports Bluetooth Classic SPP.
-
-### Connected but “No signal” remains
-
-- Confirm the module is configured for 9600 baud.
-- Use USB Serial Monitor at 115200 baud to verify six-value CSV output.
-- Check that every frame ends with a newline.
-- Verify all finger values are within `0..90` and grip within `0..1023`.
-
-### Sensor readings are unstable
-
-- Use a common ground for every sensor, motor driver, display, and Bluetooth module.
-- Keep the hand flat during startup calibration.
-- Inspect voltage dividers and loose flex-sensor connections.
-
-## Privacy and limitations
-
-- Session summaries are stored locally on the phone using SharedPreferences.
-- The app does not currently provide cloud sync, user accounts, or clinician sharing.
-- The firmware does not acknowledge motor state; the app displays the last command sent.
-- A stale sensor packet is removed from the live UI after 1.5 seconds.
-- Use suitable motor drivers and never power motors directly from GPIO pins.
-
-## License
-
-No open-source license has been added yet. Unless a license is provided, normal copyright restrictions apply.
+Release Android builds currently use debug signing. Configure a private keystore before public distribution. Never commit keys, local SDK paths, generated files, APKs or IDE state. No open-source license has been added; normal copyright restrictions apply.

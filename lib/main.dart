@@ -23,7 +23,7 @@ class SmartGloveApp extends StatelessWidget {
   Widget build(BuildContext context) => AnimatedBuilder(
     animation: AppThemeController.instance,
     builder: (context, _) => MaterialApp(
-      title: 'NerveLink',
+      title: 'Smart Glove App',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,

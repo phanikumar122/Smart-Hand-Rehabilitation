@@ -1,4 +1,4 @@
-# NerveLink Setup Guide
+# Smart Glove App Setup Guide
 
 This guide covers Flutter setup, Android-device deployment, APK installation, Bluetooth pairing, and common Windows troubleshooting.
 
@@ -111,7 +111,7 @@ adb install -r build/app/outputs/flutter-apk/app-debug.apk
 1. Copy `app-debug.apk` to the phone’s Downloads folder.
 2. Open the file using Android Files.
 3. If prompted, allow installation from that source.
-4. Tap **Install**, then open **NerveLink Rehab**.
+4. Tap **Install**, then open **Smart Glove App**.
 
 ## 6. Upload the glove firmware
 
@@ -121,30 +121,44 @@ Firmware path:
 arduino/smart_glove/smart_glove.ino
 ```
 
-Install these Arduino libraries:
+Use Arduino AVR core **1.8.6**. EEPROM, SoftwareSerial and Wire are included in the core; external Adafruit display libraries are no longer needed. Open the sketch folder with its two supporting headers present.
 
-- Adafruit GFX Library
-- Adafruit SSD1306
+Arduino IDE: choose **Arduino Nano**, **ATmega328P** (or **ATmega328P (Old Bootloader)** only for that variant), and the actual board COM port. Upload with the motor supply disabled for the first electrical check.
 
-Select the correct board and serial port, then upload. The firmware uses:
+Arduino CLI, from the repository root:
 
-- USB debug serial: `115200`
-- HC-05/HC-06 serial: `9600`
-- Calibration delay: three seconds after power-on
-- Sensor transmission: every 100 ms
+```powershell
+arduino-cli core update-index
+arduino-cli core install arduino:avr@1.8.6
+arduino-cli board list
+arduino-cli compile --fqbn arduino:avr:nano:cpu=atmega328 --warnings all arduino/smart_glove
+```
 
-Keep the hand flat until the OLED finishes showing `CALIBRATING...`.
+Upload example (replace COM5 with the port reported for your physical Nano):
+
+```powershell
+arduino-cli upload --fqbn arduino:avr:nano:cpu=atmega328 --port COM5 arduino/smart_glove
+```
+
+For a confirmed old-bootloader board, both commands use `--fqbn arduino:avr:nano:cpu=atmega328old`. Compilation cannot determine which bootloader is physically installed. No firmware upload has been performed as part of local software verification.
+
+If native Windows execution is blocked or Arduino CLI is unavailable, Arduino IDE is an alternative. This upgrade was compiled using Arduino CLI in Ubuntu WSL. Host tests can be run in WSL from the project directory with `wsl -d Ubuntu -- python3 arduino/tests/run_tests.py` when Python and g++ are installed. USB upload from WSL requires the device to be attached to that environment; otherwise upload through Windows Arduino IDE/CLI. Do not assume a Windows COM name is a WSL serial device.
+
+Firmware rates: USB debug 115200, Bluetooth 9600, sampling 50 Hz nominal, telemetry 10 Hz nominal, OLED snapshot 4 Hz nominal. Serial Monitor shows six-value sensor lines and occasional `DIAG,MISSED,...,OLED,...` diagnostics. Motors start off; valid EEPROM calibration loads automatically. There is no three-second startup capture. Perform open/bent/save in app Settings; see [Calibration Guide](CALIBRATION_GUIDE.md).
 
 ## 7. Pair and connect the glove
 
 1. Power the glove.
 2. In Android Bluetooth settings, pair the HC-05/HC-06.
 3. Try PIN `1234` or `0000` if asked.
-4. Open NerveLink.
+4. Open Smart Glove App.
 5. Grant Nearby devices/Bluetooth permissions.
 6. Tap **Scan** or refresh paired devices.
 7. Tap **Connect** for the glove.
-8. Wait for **Live signal**.
+8. Confirm firmware status in Settings, complete open/bent/save calibration and wait for **Live signal** before recording.
+9. Test AUTO and MANUAL mode on the bench before wearing the powered glove.
+
+Use **Settings → Use legacy firmware** only for an older glove without this protocol. Missing ACKs on a 3.0 glove require link/firmware troubleshooting, not legacy fallback. Legacy mode is cleared on disconnect.
 
 On Android 11 and earlier, Bluetooth discovery may also require Location permission and Location services.
 
@@ -195,4 +209,4 @@ If the device is `unauthorized`, unlock it and accept the debugging prompt. If i
 
 ### Bluetooth permission denied permanently
 
-Open Android **Settings → Apps → NerveLink Rehab → Permissions** and enable Nearby devices, then reopen the app.
+Open Android **Settings → Apps → Smart Glove App → Permissions** and enable Nearby devices, then reopen the app.

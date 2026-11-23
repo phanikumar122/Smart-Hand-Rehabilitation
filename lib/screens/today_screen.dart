@@ -27,7 +27,7 @@ class TodayScreen extends StatelessWidget {
           slivers: [
             SliverToBoxAdapter(
               child: AppPageHeader(
-                eyebrow: 'NerveLink · Today',
+                eyebrow: 'Smart Glove App · Today',
                 title: 'Your recovery, in motion',
                 subtitle:
                     'Small, consistent sessions create meaningful progress.',

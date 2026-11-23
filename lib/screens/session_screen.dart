@@ -163,6 +163,8 @@ class SessionScreen extends StatelessWidget {
                           ? '${provider.sessionReadingCount} readings recorded'
                           : provider.canStartSession
                           ? 'Ready to begin'
+                          : provider.hasLiveData && !provider.legacyFirmware
+                          ? 'Open Settings to confirm firmware status and complete calibration before recording.'
                           : 'Connect the glove and wait for a live signal.',
                       textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.bodyMedium

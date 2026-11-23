@@ -5,6 +5,7 @@ import '../providers/glove_data_provider.dart';
 import '../services/storage_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_components.dart';
+import '../widgets/calibration_panel.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -19,7 +20,7 @@ class SettingsScreen extends StatelessWidget {
           children: [
             const AppPageHeader(
               eyebrow: 'Preferences',
-              title: 'Make NerveLink yours',
+              title: 'Make Smart Glove App yours',
               subtitle:
                   'Adjust appearance, connection behavior, and your data.',
             ),
@@ -91,6 +92,30 @@ class SettingsScreen extends StatelessWidget {
                   ),
                   if (provider.isConnected) ...[
                     const Divider(height: 1),
+                    SwitchListTile(
+                      title: const Text('Use legacy firmware'),
+                      subtitle: const Text(
+                        'For older gloves only. Calibration, motor state, and command delivery cannot be confirmed.',
+                      ),
+                      value: provider.legacyFirmware,
+                      onChanged:
+                          provider.commandPending ||
+                              provider.isSessionActive ||
+                              provider.supportsProtocol
+                          ? null
+                          : (value) async {
+                              try {
+                                await provider.setLegacyFirmwareMode(value);
+                              } catch (error) {
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text(error.toString())),
+                                  );
+                                }
+                              }
+                            },
+                    ),
+                    const Divider(height: 1),
                     ListTile(
                       contentPadding: const EdgeInsets.symmetric(
                         horizontal: 18,
@@ -112,6 +137,8 @@ class SettingsScreen extends StatelessWidget {
                 ],
               ),
             ),
+            const SizedBox(height: 24),
+            const CalibrationPanel(),
             const SizedBox(height: 24),
             SectionHeader(
               title: 'Data & privacy',

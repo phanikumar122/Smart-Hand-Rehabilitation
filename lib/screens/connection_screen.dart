@@ -204,7 +204,7 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
             AppPageHeader(
               eyebrow: 'Step 1 of 3 · Connect',
               title: 'Connect Glove',
-              subtitle: 'Link NerveLink to begin live movement tracking.',
+              subtitle: 'Connect your glove to begin live movement tracking.',
               trailing: IconButton.filledTonal(
                 tooltip: 'Settings',
                 icon: const Icon(Icons.tune_rounded),

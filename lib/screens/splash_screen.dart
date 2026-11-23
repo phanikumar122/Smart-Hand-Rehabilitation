@@ -84,7 +84,7 @@ class _SplashScreenState extends State<SplashScreen>
                   ),
                   const SizedBox(height: 28),
                   Text(
-                    'NerveLink',
+                    'Smart Glove App',
                     style: Theme.of(context).textTheme.headlineLarge
                         ?.copyWith(letterSpacing: -1),
                   ),

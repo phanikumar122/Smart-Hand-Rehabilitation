@@ -1,5 +1,5 @@
 name: smart_glove_app
-description: "Android companion app for the NerveLink smart hand rehabilitation glove."
+description: "Smart Glove App: Android companion for the hand rehabilitation glove."
 publish_to: 'none'
 version: 1.0.0+1
 

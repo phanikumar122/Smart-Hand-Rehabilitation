@@ -1,221 +1,134 @@
-# NerveLink Hardware and Wiring Guide
+# Smart Glove App hardware guide — Classic Nano glove
 
-This guide documents the hardware expected by `arduino/smart_glove/smart_glove.ino`.
+This guide documents the firmware's pin map and the circuits required to build it. Repository documents identify the intended Nano, sensors, HC-05/HC-06 and SSD1306, but do **not** establish the installed motor model/current, exact supply rating, MOSFET/transistor part numbers, battery protection or physical bootloader. Verify those details on the actual assembly and record measurements in the bench log.
 
-> **Safety notice:** This is a prototype, not a certified medical device. Disconnect power while wiring. Use motor driver transistors and flyback protection; do not connect vibration motors directly to microcontroller GPIO pins. Use a regulated, current-appropriate power source.
+## Firmware and app used with this wiring
 
-## 1. Bill of materials
+Upload the complete `arduino/smart_glove` folder: `smart_glove.ino`, `glove_core.h` and `text_oled.h` are all required. The firmware targets the Classic Nano/ATmega328P; select the actual board's modern or old bootloader in Arduino IDE/CLI. It uses the AVR core's Wire, EEPROM and SoftwareSerial libraries; external Adafruit display libraries are not required.
 
-| Component | Quantity | Purpose |
-|---|---:|---|
-| Arduino Nano-compatible board with A6/A7 | 1 | Sensor processing and control |
-| HC-05 or HC-06 Bluetooth module | 1 | Android Bluetooth Classic SPP link |
-| Flex sensor | 5 | One per finger |
-| Force-sensitive resistor (FSR) | 1 | Grip pressure input |
-| 10 kΩ resistor | 6 | Flex/FSR voltage dividers |
-| Coin vibration motor | 5 | One per finger |
-| Logic-level transistor/MOSFET | 5 | Motor drivers |
-| Flyback diode suitable for the motor | 5 | Motor transient protection |
-| Gate/base resistor and pull-down as needed | 5 sets | Stable motor switching |
-| SSD1306 128×64 I²C OLED | 1 | Local glove status |
-| 1 kΩ and 2 kΩ resistors | 1 each | HC-05 RX voltage divider when using a 5 V board |
-| Regulated USB power bank or suitable battery system | 1 | Portable power |
-| Glove, flexible wire, connectors, insulation | As needed | Wearable assembly |
+On startup, motor outputs are initialized OFF before peripherals, then stored calibration is checked. There is no single-reading, three-second startup calibration. With **Smart Glove App**, connect the glove and use **Settings → Glove calibration** to capture open hand with unloaded FSR, capture comfortable bent hand, and save. Outputs remain inhibited throughout the calibration workflow. Use the updated app's AUTO/MANUAL controls; the OLED's `SG3` label identifies the 3.0 firmware.
 
-The earlier one-motor circuit is not sufficient for this firmware: it controls five independent motor outputs.
+Before the first powered motor test, disable the motor supply and verify all five driver circuits below. After confirming voltage/current ratings and electrical OFF behavior, enable the supply and follow the [bench procedure](BENCH_TEST_GUIDE.md). The complete [setup guide](SETUP_GUIDE.md) covers upload, Android installation and pairing.
 
-## 2. Firmware pin map
+## Controller and complete pin map
 
-### Analog sensors
+Use a Classic Nano or ATmega328P-compatible board with A6 and A7 physically exposed. SRAM is 2 KB. A board with only A0–A5 cannot accommodate this map unchanged.
 
-| Input | Arduino pin |
+| Signal | Nano pin | Notes |
+|---|---|---|
+| Thumb flex | A0 | ADC voltage divider |
+| Index flex | A1 | ADC voltage divider |
+| Middle flex | A2 | ADC voltage divider |
+| Ring flex | A3 | ADC voltage divider |
+| Pinky flex | A6 | Analog-only input on Classic Nano |
+| Grip FSR | A7 | Analog-only input on Classic Nano |
+| Bluetooth module TXD | D2 | SoftwareSerial receive |
+| Bluetooth module RXD | D3 | SoftwareSerial transmit, protected divider |
+| OLED SDA | A4 | I2C |
+| OLED SCL | A5 | I2C |
+| Thumb motor driver | D11 | ON/OFF control, not direct motor power |
+| Index motor driver | D10 | Independent driver |
+| Middle motor driver | D9 | Independent driver |
+| Ring motor driver | D6 | Independent driver |
+| Pinky motor driver | D5 | Independent driver |
+| USB diagnostics/upload | D0/D1 hardware UART | Bluetooth uses D2/D3, not these pins |
+
+A4/A5 are reserved for the OLED. Verify board markings and finger order before wiring.
+
+## Sensor dividers
+
+The documented starting circuit is:
+
+```text
+regulated sensor supply ── sensor ──+── ADC input
+                                   |
+                                 10 kΩ
+                                   |
+                                  GND
+```
+
+10 kΩ is a starting divider value, not a universal requirement. Select from actual sensor resistance curves to obtain a stable, unsaturated ADC span. Confirm voltage never exceeds the MCU supply/reference range. Keep the analog source impedance within the ADC datasheet's acquisition requirements or add suitable settling/buffering. Measure channel-to-channel coupling before accepting the sampling rate.
+
+Flex ADC can increase or decrease with bending; signed two-point calibration handles both. With the FSR in the shown top position, falling resistance under load normally raises ADC. Firmware grip logic assumes that increasing direction and computes positive delta above an averaged unloaded baseline. Reverse wiring requires a deliberate calculation change. Do not claim force units without an independent load-cell/reference calibration.
+
+Use short analog wires, secure connectors and strain relief. Avoid sharp flex-sensor creases or mounting that restricts joint motion.
+
+## Bluetooth
+
+| Module pin | Connection |
 |---|---|
-| Thumb flex | A0 |
-| Index flex | A1 |
-| Middle flex | A2 |
-| Ring flex | A3 |
-| Pinky flex | A6 |
-| Grip FSR | A7 |
+| VCC | Supply specified for the actual breakout; regulator-equipped boards often accept 5 V, bare modules may not |
+| GND | Shared ground |
+| TXD | Nano D2 |
+| RXD | Nano D3 via divider |
 
-Each sensor uses a voltage divider:
+A common 5 V TX protection divider:
 
 ```text
-5 V ── sensor ──┬── analog input
-                │
-               10 kΩ
-                │
-               GND
+Nano D3 ── 1 kΩ ──+── module RXD
+                   |
+                  2 kΩ
+                   |
+                  GND
 ```
 
-Sensor orientation and resistor value can affect whether bending increases or decreases the ADC reading. The firmware uses the absolute difference from startup baseline.
+This divides 5 V to approximately 3.33 V. Verify the module's RX absolute maximum and HIGH threshold, actual resistor tolerances and line waveform. Module TX is generally 3.3 V; confirm that it meets the ATmega328P input HIGH threshold for the installed voltage.
 
-### Bluetooth module
+Set the module's **data-mode UART** baud to 9600. HC-05 AT-command baud can differ from data-mode baud; follow the exact module documentation. The STATE pin is not used. OLED RX indication and manual-control lease show recent app/serial activity, not an electrically measured Bluetooth connection.
 
-| HC-05/HC-06 pin | Arduino connection |
-|---|---|
-| VCC | Supply required by the module breakout (commonly 5 V) |
-| GND | Common GND |
-| TXD | D2 — SoftwareSerial RX |
-| RXD | D3 — SoftwareSerial TX through a voltage divider on 5 V boards |
+## OLED
 
-The firmware does not use the module’s STATE pin.
+SSD1306 128×64, I2C address 0x3C, SDA A4, SCL A5. Check module supply and pull-up voltage requirements. Firmware uses 100 kHz and a bounded Wire timeout; inspect rise times and existing parallel pull-ups before considering 400 kHz. OLED initialization/transfer failure disables display work without stopping sensor/control operation.
 
-Logic-level protection for HC-05 RX:
+Rows show mode/activity, five finger movement/bend/output values, grip ADC/delta and calibration/timeout status. `B/F` derives from movement threshold; `V/-` derives from effective motor output, independently.
+
+## Five independent motor drivers
+
+**Never power a vibration motor directly from GPIO. Never assume the Nano's small regulator can supply all five motors.** Replicate the following low-side circuit for D11, D10, D9, D6 and D5:
 
 ```text
-Arduino D3 ── 1 kΩ ──┬── HC-05 RXD
-                     │
-                    2 kΩ
-                     │
-                    GND
+motor-rated supply + ─────+────────── motor +
+                         |              motor
+                   diode cathode        motor - ───+── MOSFET drain
+                         |                           |
+                    flyback diode ─── diode anode ───+
+
+Nano GPIO ── gate resistor ── MOSFET gate
+                               |
+                         gate pulldown
+                               |
+MOSFET source ──────────────────+── common GND
 ```
 
-The HC-05 TXD signal can normally connect directly to a 5 V Arduino input because its 3.3 V HIGH is recognized.
+The flyback diode is directly across the motor: **cathode/stripe to supply positive, anode to switched motor negative/drain**. It is reverse biased during normal operation. Place diode and local decoupling close to the driver/motor loop.
 
-### OLED display
+Use a logic-level N-channel MOSFET with RDS(on) specified at the actual gate voltage (approximately 5 V for this Nano), not merely a low gate-threshold voltage. Select drain voltage rating with transient margin, continuous/pulsed current ratings above measured start/stall demand, safe operating area and thermal resistance suitable for the enclosure. Estimate conduction loss as `I² × RDS(on)` at worst-case temperature; verify case/junction temperature experimentally. A small logic-level part such as an AO3400-family device can be considered only after checking the exact manufacturer's datasheet and actual load/thermal layout; it is not a blanket rating recommendation.
 
-| OLED pin | Arduino Nano pin |
-|---|---|
-| VCC | Module-rated supply |
-| GND | Common GND |
-| SDA | A4 |
-| SCL | A5 |
+Gate resistor 100–330 Ω and pulldown 47–100 kΩ are typical starting ranges for slow ON/OFF control; verify switching waveform, GPIO current and EMI. Pulldown must hold the gate OFF during reset/disconnected control. Firmware startup OFF complements, but does not replace, this electrical OFF state.
 
-The firmware expects I²C address `0x3C`.
+A suitable BJT (for example an appropriately rated BC337/PN2222A variant) is an alternative for small verified loads. Size base current for saturation at worst start/stall current using the device datasheet's forced gain, then `Rbase ≈ (Vgpio − VBE(sat)) / Ibase`. Check GPIO per-pin/group/chip current limits and BJT heating (`VCE(sat) × I`). Use an emitter-to-ground connection and base pulldown. Prefer MOSFETs if required base currents burden the MCU. Part labels across vendors do not guarantee identical ratings.
 
-### Vibration motors
+Diode selection must cover repetitive motor current/freewheel energy, reverse voltage and temperature. Fast or Schottky devices may suit small motors when their exact ratings fit. Do not select solely by appearance or an assumed universal motor current.
 
-| Finger | Control pin |
-|---|---|
-| Thumb | D11 |
-| Index | D10 |
-| Middle | D9 |
-| Ring | D6 |
-| Pinky | D5 |
+## Supply, ground and decoupling
 
-Recommended low-side driver per motor:
+Record each motor's rated voltage, running current, measured start/stall current and duty/temperature constraints. Size the supply for simultaneous startup of **all five** motors plus electronics and a justified transient margin. AUTO grip activation can switch all five together. Use motor-rated voltage regulation; do not apply 5 V to an unverified 3 V motor.
 
-```text
-Motor supply + ── motor ──┬── transistor drain/collector
-                          │
-                    flyback diode
-                          │
-GPIO ── resistor ── gate/base
-Transistor source/emitter ── GND
-```
+All logic, sensor, Bluetooth, OLED, driver and motor-supply grounds must share a reference. Route high-current motor returns directly toward the supply/star ground, not through thin analog/MCU ground paths. Keep motor leads away from flex/FSR wiring; twisting motor pairs and short switching loops reduce noise. Verify voltage drop with all motors active.
 
-Connect all grounds together. Size the power supply and wiring for the combined current when all five motors are active.
+Use local ceramic decoupling (100 nF is a typical starting value) near logic/module supplies, with low-ESR bulk capacitance on the motor rail sized from measured transient demand. A first estimate is `C >= ΔI × Δt / allowed ΔV`; ESR adds immediate voltage drop. Values such as 100–470 µF are only initial bench choices, not substitutes for a supply that can support startup current. Suppression at motor terminals and optional analog RC filtering require measured noise/latency tuning.
 
-## 3. Assembly sequence
+If using a battery, verify chemistry, protection/BMS, fuse/current limiting, charging circuit, enclosure and regulator voltage/current/thermal ratings. An unregulated single cell is not automatically a suitable Nano sensor/reference supply. VIN linear-regulator dissipation is approximately `(VIN − 5 V) × logic current`; motor power must not pass through an inadequate Nano regulator. Follow the board's external-power/USB backfeed guidance before connecting both supplies.
 
-1. Prototype one flex sensor and confirm stable analog readings.
-2. Add all flex sensors and the FSR with a common ground.
-3. Add the OLED and confirm address `0x3C`.
-4. Test the HC-05/HC-06 at 9600 baud.
-5. Build and test one protected motor driver.
-6. Replicate the driver for all five motors.
-7. Upload the firmware and verify USB debug frames.
-8. Mount electronics on the glove only after bench testing.
-9. Add strain relief and insulate all exposed connections.
+## Assembly and verification order
 
-## 4. Sensor placement
+1. Identify the actual board/module/motor/supply components from markings and datasheets.
+2. With motor supply disabled, verify supply rails, shorts, polarity and default driver OFF states.
+3. Validate one sensor channel, then all six, including ADC span/noise/crosstalk.
+4. Verify OLED address and Bluetooth 9600 data-mode link.
+5. Test one driver/current/diode waveform, then replicate and test all five independently.
+6. Verify combined-start supply behavior, MCU resets and analog noise.
+7. Perform open/bent/save calibration, then haptic mode/rearm/disconnect checks.
+8. Mount on a glove only after bench electrical tests; insulate exposed nodes and add strain relief.
 
-- Mount flex sensors along the back of each finger.
-- Do not sharply crease or puncture a flex sensor.
-- Place the active bending region over the finger joints.
-- Route wires toward the wrist with enough slack for safe movement.
-- Place the FSR where the selected exercise applies pressure, typically the palm or a grip contact point.
-- Position vibration motors where feedback is clear without restricting circulation or joint movement.
-
-## 5. Startup calibration
-
-On power-up, the OLED displays:
-
-```text
-CALIBRATING...
-Keep hand FLAT
-```
-
-Keep every finger in the neutral flat position for three seconds. The firmware captures one baseline value per flex sensor. Restart the glove if the hand moved during this step.
-
-The current firmware does not persist calibration across restarts and does not average several baseline samples.
-
-## 6. Firmware behavior
-
-- HC-05/HC-06 baud: `9600`
-- USB debug baud: `115200`
-- Sensor frames: every `100 ms`
-- OLED refresh: every `200 ms`
-- Finger angles: mapped to `0..90`
-- Grip value: raw ADC `0..1023`
-
-The force threshold is `50`. When pressure exceeds the threshold, the firmware activates all five motors. Otherwise, each motor uses bend hysteresis:
-
-- Turn on at delta `40` or greater
-- Turn off at delta `15` or less
-
-App commands can also set individual or all motor outputs. Because automatic sensor logic continues every loop, it may subsequently change a commanded motor state.
-
-## 7. Bench verification
-
-Open Serial Monitor at 115200 baud. After calibration, expect output similar to:
-
-```text
-USB Debug: 0,5,14,8,2,37
-```
-
-Confirm:
-
-- Six values appear on each line.
-- The first five remain within `0..90`.
-- Grip remains within `0..1023`.
-- Each flex value responds to the correct finger.
-- Motor commands target the correct output.
-- OLED readings match serial readings.
-
-## 8. Troubleshooting
-
-### OLED does not initialize
-
-- Confirm SDA is A4 and SCL is A5.
-- Scan for the actual I²C address; change `0x3C` if necessary.
-- Check supply voltage requirements.
-
-### Bluetooth pairs but sends no data
-
-- Confirm module baud is 9600.
-- Cross TX/RX correctly: module TXD → Arduino D2, module RXD ← Arduino D3.
-- Verify common ground.
-- Confirm valid output in USB Serial Monitor first.
-
-### A finger stays near 0° or 90°
-
-- Check its voltage divider and A0/A1/A2/A3/A6 pin.
-- Restart with the hand flat.
-- Inspect for a damaged or sharply bent sensor.
-- Adjust the firmware’s `map(delta, 0, 150, 0, 90)` range for the installed sensor.
-
-### Motors reset the board or disturb readings
-
-- Do not power motors from GPIO.
-- Use a separate adequately rated motor supply with common ground.
-- Add flyback diodes and local decoupling.
-- Keep motor wiring away from analog sensor wiring.
-
-### Upload fails
-
-- Select the correct board, processor, and COM port.
-- Close Serial Monitor before upload.
-- D2/D3 SoftwareSerial normally does not interfere with USB upload, but disconnect the Bluetooth module if power or wiring problems persist.
-
-## 9. Recommended improvements
-
-For a more robust future revision:
-
-- Average multiple calibration samples.
-- Store calibration ranges in EEPROM.
-- Replace dynamic Arduino `String` construction with fixed buffers.
-- Add acknowledgements for haptic commands.
-- Separate automatic haptic behavior from remote-control mode.
-- Add battery monitoring and electrical isolation review.
-- Validate the complete system with qualified rehabilitation professionals before clinical use.
+See [Bench Test Guide](BENCH_TEST_GUIDE.md) for acceptance measurements and [Calibration Guide](CALIBRATION_GUIDE.md) for fitting/tuning. Qualified electrical review and appropriate clinical review remain necessary before supervised rehabilitation deployment; this project has no medical certification.

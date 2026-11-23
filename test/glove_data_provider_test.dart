@@ -83,17 +83,23 @@ void main() {
     expect(provider.sessionMessage, contains('discarded'));
   });
   test('sends exact firmware commands and awaits output flush', () async {
-    await provider.vibrateAll(true);
-    await provider.vibrateAll(false);
-    await provider.vibrateFinger(3, false);
-    await provider.vibrateFinger(5, true);
+    Future<void> confirm(Future<void> command, String response) async {
+      receive('$response\n');
+      await command;
+    }
+
+    await confirm(provider.vibrateAll(true), 'ACK,2,VIB,ALL,1,31');
+    await confirm(provider.vibrateAll(false), 'ACK,3,VIB,ALL,0,0');
+    await confirm(provider.vibrateFinger(3, false), 'ACK,4,VIB,3,0,0');
+    await confirm(provider.vibrateFinger(5, true), 'ACK,5,VIB,5,1,16');
     expect(link.writes.map(ascii.decode).toList(), [
-      '<VIB:ALL,1>',
-      '<VIB:ALL,0>',
-      '<VIB:3,0>',
-      '<VIB:5,1>',
+      '<Q:1:STATUS>',
+      '<Q:2:VIB:ALL,1>',
+      '<Q:3:VIB:ALL,0>',
+      '<Q:4:VIB:3,0>',
+      '<Q:5:VIB:5,1>',
     ]);
-    expect(link.flushes, 4);
+    expect(link.flushes, 5);
     expect(() => provider.vibrateFinger(0, true), throwsRangeError);
     expect(() => provider.vibrateFinger(6, true), throwsRangeError);
     await expectLater(provider.sendCommand('<VIB:ALL,2>'), throwsArgumentError);

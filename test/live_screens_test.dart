@@ -13,6 +13,7 @@ import 'package:smart_glove_app/screens/today_screen.dart';
 import 'package:smart_glove_app/screens/live_hand_screen.dart';
 import 'package:smart_glove_app/screens/app_shell.dart';
 import 'package:smart_glove_app/screens/session_screen.dart';
+import 'package:smart_glove_app/screens/settings_screen.dart';
 import 'package:smart_glove_app/widgets/haptic_control_panel.dart';
 
 import 'support/bluetooth_radio.dart';
@@ -176,11 +177,20 @@ void main() {
       await tester.runAsync(() => provider.connectToDevice(device));
       await tester.pump();
       await tester.tap(find.text('All on'));
+      link.bytes.add(Uint8List.fromList(ascii.encode('ACK,2,VIB,ALL,1,31\n')));
       await tester.pumpAndSettle();
-      expect(link.writes.map(ascii.decode), ['<VIB:ALL,1>']);
+      expect(link.writes.map(ascii.decode), [
+        '<Q:1:STATUS>',
+        '<Q:2:VIB:ALL,1>',
+      ]);
       await tester.tap(find.byType(Switch).at(2));
+      link.bytes.add(Uint8List.fromList(ascii.encode('ACK,3,VIB,3,0,27\n')));
       await tester.pumpAndSettle();
-      expect(link.writes.map(ascii.decode), ['<VIB:ALL,1>', '<VIB:3,0>']);
+      expect(link.writes.map(ascii.decode), [
+        '<Q:1:STATUS>',
+        '<Q:2:VIB:ALL,1>',
+        '<Q:3:VIB:3,0>',
+      ]);
       await tester.pumpWidget(const SizedBox());
     },
   );
@@ -196,6 +206,7 @@ void main() {
           const SessionScreen(),
           const LiveHandScreen(),
           const ConnectionScreen(),
+          const SettingsScreen(),
         ]) {
           await tester.pumpWidget(app(screen, textScale: 2));
           await tester.pump();
@@ -204,6 +215,24 @@ void main() {
       }
       await tester.pumpWidget(const SizedBox());
       tester.view.reset();
+    },
+  );
+  testWidgets(
+    'settings explains calibration and prevents disconnected capture',
+    (tester) async {
+      await tester.pumpWidget(app(const SettingsScreen(), textScale: 2));
+      await tester.scrollUntilVisible(find.text('Capture open hand'), 250);
+      expect(find.text('Glove calibration'), findsOneWidget);
+      expect(
+        tester
+            .widget<OutlinedButton>(
+              find.widgetWithText(OutlinedButton, 'Capture open hand'),
+            )
+            .onPressed,
+        isNull,
+      );
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
     },
   );
 }

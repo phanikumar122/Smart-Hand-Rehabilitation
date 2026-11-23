@@ -2,6 +2,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/glove_data_provider.dart';
+import '../models/firmware_status.dart';
 import '../widgets/app_components.dart';
 
 class HapticControlPanel extends StatefulWidget {
@@ -11,7 +12,6 @@ class HapticControlPanel extends StatefulWidget {
 }
 
 class _HapticControlPanelState extends State<HapticControlPanel> {
-  final List<bool?> _requested = List.filled(5, null);
   bool _sending = false;
   String? _error;
   static const _fingers = ['Thumb', 'Index', 'Middle', 'Ring', 'Pinky'];
@@ -30,13 +30,6 @@ class _HapticControlPanelState extends State<HapticControlPanel> {
         await provider.vibrateFinger(finger, enabled);
       }
       if (!mounted) return;
-      setState(() {
-        if (finger == null) {
-          _requested.fillRange(0, 5, enabled);
-        } else {
-          _requested[finger - 1] = enabled;
-        }
-      });
     } catch (error) {
       if (!mounted) return;
       setState(() => _error = error.toString());
@@ -47,56 +40,126 @@ class _HapticControlPanelState extends State<HapticControlPanel> {
 
   @override
   Widget build(BuildContext context) {
-    final enabled = context.watch<GloveDataProvider>().isConnected && !_sending;
+    final provider = context.watch<GloveDataProvider>();
+    final enabled =
+        provider.isConnected &&
+        !_sending &&
+        !provider.commandPending &&
+        provider.calibrationPhase == CalibrationPhase.idle &&
+        (provider.firmware != null || provider.legacyFirmware);
     return ClinicalCard(
-      child: Padding(
-        padding: EdgeInsets.zero,
-        child: Column(
-          children: [
-            Text(
-              'Vibration Controls',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const Text(
-              'Shows commands sent. The glove does not confirm motor state.',
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 16,
-              runSpacing: 8,
-              children: [
-                ElevatedButton(
-                  onPressed: enabled ? () => _send(true) : null,
-                  child: const Text('All on'),
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: EdgeInsets.zero,
+          child: Column(
+            children: [
+              Text(
+                'Vibration Controls',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              Text(
+                provider.legacyFirmware
+                    ? 'Legacy firmware: commands are sent without state confirmation.'
+                    : 'Shows outputs reported by the glove. A motor command selects Manual mode.',
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Mode: ${provider.hapticMode == null
+                    ? 'Unknown'
+                    : provider.hapticMode == HapticMode.manual
+                    ? 'Manual'
+                    : 'Automatic'}',
+              ),
+              if (!provider.legacyFirmware)
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 8,
+                  children: [
+                    OutlinedButton(
+                      onPressed: enabled
+                          ? () => _mode(HapticMode.automatic)
+                          : null,
+                      child: const Text('Automatic'),
+                    ),
+                    OutlinedButton(
+                      onPressed: enabled
+                          ? () => _mode(HapticMode.manual)
+                          : null,
+                      child: const Text('Manual'),
+                    ),
+                  ],
                 ),
-                OutlinedButton(
-                  onPressed: enabled ? () => _send(false) : null,
-                  child: const Text('All off'),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 16,
+                runSpacing: 8,
+                children: [
+                  ElevatedButton(
+                    onPressed: enabled ? () => _send(true) : null,
+                    child: const Text('All on'),
+                  ),
+                  OutlinedButton(
+                    onPressed: enabled ? () => _send(false) : null,
+                    child: const Text('All off'),
+                  ),
+                ],
+              ),
+              if (_sending || provider.commandPending)
+                const LinearProgressIndicator(),
+              for (var i = 0; i < 5; i++) ...[
+                if (i > 0) const Divider(height: 1),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(_fingers[i]),
+                  subtitle: Text(
+                    (provider.confirmedMotorMask == null
+                            ? 'Output unknown'
+                            : provider.confirmedMotorMask! & (1 << i) != 0
+                            ? 'Reported output: On'
+                            : 'Reported output: Off') +
+                        (provider.commandState == CommandState.sending ||
+                                provider.commandState ==
+                                    CommandState.sentUnconfirmed
+                            ? '\nRequested: ${provider.requestedMotorMask & (1 << i) != 0 ? 'On' : 'Off'}'
+                            : ''),
+                  ),
+                  value: (provider.confirmedMotorMask ?? 0) & (1 << i) != 0,
+                  onChanged: enabled ? (value) => _send(value, i + 1) : null,
                 ),
               ],
-            ),
-            if (_sending) const LinearProgressIndicator(),
-            for (var i = 0; i < 5; i++) ...[
-              if (i > 0) const Divider(height: 1),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text(_fingers[i]),
-                subtitle: Text(
-                  _requested[i] == null
-                      ? 'No command sent'
-                      : _requested[i]!
-                      ? 'Last command: On'
-                      : 'Last command: Off',
+              if (provider.commandMessage != null)
+                Semantics(
+                  liveRegion: true,
+                  child: Text(provider.commandMessage!),
                 ),
-                value: _requested[i] ?? false,
-                onChanged: enabled ? (value) => _send(value, i + 1) : null,
-              ),
+              if (provider.safetyMessage != null)
+                Text(
+                  provider.safetyMessage!,
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
+              if (_error != null)
+                Text(
+                  _error!,
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
             ],
-            if (_error != null)
-              Text(_error!, style: const TextStyle(color: Colors.redAccent)),
-          ],
+          ),
         ),
       ),
     );
+  }
+
+  Future<void> _mode(HapticMode mode) async {
+    setState(() {
+      _sending = true;
+      _error = null;
+    });
+    try {
+      await context.read<GloveDataProvider>().setHapticMode(mode);
+    } catch (error) {
+      if (mounted) setState(() => _error = error.toString());
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
   }
 }
