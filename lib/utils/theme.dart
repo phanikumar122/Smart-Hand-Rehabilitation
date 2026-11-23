@@ -1,5 +1,4 @@
-import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:material_ui/material_ui.dart';
 
 class AppTheme {
   static const Color primaryColor = Color(0xFF00FFCC); // Cyan/Green accent
@@ -20,7 +19,7 @@ class AppTheme {
         surface: backgroundColor,
         error: errorColor,
       ),
-      textTheme: GoogleFonts.interTextTheme(ThemeData.dark().textTheme),
+      textTheme: ThemeData.dark().textTheme,
       appBarTheme: const AppBarTheme(
         backgroundColor: backgroundColor,
         elevation: 0,
@@ -40,9 +39,7 @@ class AppTheme {
       cardTheme: CardThemeData(
         color: cardColor,
         elevation: 4,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       ),
     );
   }

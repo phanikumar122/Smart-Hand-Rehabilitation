@@ -1,4 +1,8 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
+import 'package:provider/provider.dart';
+
+import '../providers/glove_data_provider.dart';
+import 'bluetooth_screen.dart';
 import 'dashboard_screen.dart';
 import 'hand_viz_screen.dart';
 import 'charts_screen.dart';
@@ -7,7 +11,7 @@ import 'history_screen.dart';
 import '../utils/theme.dart';
 
 class MainWrapper extends StatefulWidget {
-  const MainWrapper({Key? key}) : super(key: key);
+  const MainWrapper({super.key});
 
   @override
   State<MainWrapper> createState() => _MainWrapperState();
@@ -26,6 +30,9 @@ class _MainWrapperState extends State<MainWrapper> {
 
   @override
   Widget build(BuildContext context) {
+    if (!context.watch<GloveDataProvider>().isConnected) {
+      return const BluetoothScreen();
+    }
     return Scaffold(
       body: _screens[_currentIndex],
       bottomNavigationBar: BottomNavigationBar(
@@ -36,9 +43,15 @@ class _MainWrapperState extends State<MainWrapper> {
         selectedItemColor: AppTheme.primaryColor,
         unselectedItemColor: Colors.grey,
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.dashboard), label: 'Dashboard'),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.dashboard),
+            label: 'Dashboard',
+          ),
           BottomNavigationBarItem(icon: Icon(Icons.front_hand), label: 'Hand'),
-          BottomNavigationBarItem(icon: Icon(Icons.show_chart), label: 'Charts'),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.show_chart),
+            label: 'Charts',
+          ),
           BottomNavigationBarItem(icon: Icon(Icons.timer), label: 'Session'),
           BottomNavigationBarItem(icon: Icon(Icons.history), label: 'History'),
         ],

@@ -1,11 +1,12 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:provider/provider.dart';
+
 import '../providers/glove_data_provider.dart';
 import '../utils/theme.dart';
 
 class ChartsScreen extends StatelessWidget {
-  const ChartsScreen({Key? key}) : super(key: key);
+  const ChartsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -13,19 +14,36 @@ class ChartsScreen extends StatelessWidget {
       appBar: AppBar(title: const Text('Live Trends')),
       body: Consumer<GloveDataProvider>(
         builder: (context, provider, child) {
-          if (provider.history.isEmpty) {
-            return const Center(child: Text("No data available yet"));
+          if (provider.currentData == null || provider.history.isEmpty) {
+            return const Center(child: Text('No signal'));
           }
 
           List<FlSpot> gripSpots = [];
           List<FlSpot> avgFingerSpots = [];
-          
-          for (int i = 0; i < provider.history.length; i++) {
-            final data = provider.history[i];
-            gripSpots.add(FlSpot(i.toDouble(), data.grip.toDouble() / 10.0)); // scale down for chart
-            
-            double avgFinger = (data.thumb + data.index + data.middle + data.ring + data.pinky) / 5.0;
-            avgFingerSpots.add(FlSpot(i.toDouble(), avgFinger));
+
+          final history = provider.history;
+          final stride = (history.length / 300).ceil().clamp(1, 10);
+          final selected = <int>{
+            for (int i = 0; i < history.length; i += stride) i,
+            history.length - 1,
+          };
+          for (final i in selected) {
+            final data = history[i];
+            final seconds =
+                data.timestamp
+                    .difference(history.first.timestamp)
+                    .inMilliseconds /
+                1000;
+            gripSpots.add(FlSpot(seconds, data.grip.toDouble()));
+
+            double avgFinger =
+                (data.thumb +
+                    data.index +
+                    data.middle +
+                    data.ring +
+                    data.pinky) /
+                5.0;
+            avgFingerSpots.add(FlSpot(seconds, avgFinger));
           }
 
           return Padding(
@@ -33,7 +51,10 @@ class ChartsScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Text('Grip Force Trend', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                const Text(
+                  'Grip Force · raw (0–1023) · last 5 minutes',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
                 const SizedBox(height: 10),
                 Expanded(
                   child: LineChart(
@@ -41,30 +62,39 @@ class ChartsScreen extends StatelessWidget {
                       lineBarsData: [
                         LineChartBarData(
                           spots: gripSpots,
-                          isCurved: true,
+                          isCurved: false,
                           color: AppTheme.primaryColor,
                           barWidth: 3,
                           dotData: const FlDotData(show: false),
                           belowBarData: BarAreaData(
                             show: true,
-                            color: AppTheme.primaryColor.withOpacity(0.2),
+                            color: AppTheme.primaryColor.withValues(alpha: 0.2),
                           ),
                         ),
                       ],
                       titlesData: const FlTitlesData(
-                        bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                        topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                        rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                        bottomTitles: AxisTitles(
+                          sideTitles: SideTitles(showTitles: false),
+                        ),
+                        topTitles: AxisTitles(
+                          sideTitles: SideTitles(showTitles: false),
+                        ),
+                        rightTitles: AxisTitles(
+                          sideTitles: SideTitles(showTitles: false),
+                        ),
                       ),
                       gridData: const FlGridData(show: true),
                       borderData: FlBorderData(show: false),
                       minY: 0,
-                      maxY: 110,
+                      maxY: 1023,
                     ),
                   ),
                 ),
                 const SizedBox(height: 30),
-                const Text('Average Finger Movement', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                const Text(
+                  'Average Finger Angle · degrees',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
                 const SizedBox(height: 10),
                 Expanded(
                   child: LineChart(
@@ -72,25 +102,31 @@ class ChartsScreen extends StatelessWidget {
                       lineBarsData: [
                         LineChartBarData(
                           spots: avgFingerSpots,
-                          isCurved: true,
+                          isCurved: false,
                           color: Colors.purpleAccent,
                           barWidth: 3,
                           dotData: const FlDotData(show: false),
                           belowBarData: BarAreaData(
                             show: true,
-                            color: Colors.purpleAccent.withOpacity(0.2),
+                            color: Colors.purpleAccent.withValues(alpha: 0.2),
                           ),
                         ),
                       ],
                       titlesData: const FlTitlesData(
-                        bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                        topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                        rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                        bottomTitles: AxisTitles(
+                          sideTitles: SideTitles(showTitles: false),
+                        ),
+                        topTitles: AxisTitles(
+                          sideTitles: SideTitles(showTitles: false),
+                        ),
+                        rightTitles: AxisTitles(
+                          sideTitles: SideTitles(showTitles: false),
+                        ),
                       ),
                       gridData: const FlGridData(show: true),
                       borderData: FlBorderData(show: false),
                       minY: 0,
-                      maxY: 100,
+                      maxY: 90,
                     ),
                   ),
                 ),

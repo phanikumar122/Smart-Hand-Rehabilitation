@@ -1,10 +1,11 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
+
 import '../providers/glove_data_provider.dart';
 import '../utils/theme.dart';
 
 class HandVizScreen extends StatelessWidget {
-  const HandVizScreen({Key? key}) : super(key: key);
+  const HandVizScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -27,45 +28,53 @@ class HandVizScreen extends StatelessWidget {
                 Positioned(
                   left: 20,
                   top: 150,
-                  child: _buildFingerLabel('Thumb', data.thumb),
+                  child: _buildFingerLabel('Thumb', data?.thumb),
                 ),
                 // Index
                 Positioned(
                   left: 80,
                   top: 40,
-                  child: _buildFingerLabel('Index', data.index),
+                  child: _buildFingerLabel('Index', data?.index),
                 ),
                 // Middle
                 Positioned(
                   left: 140,
                   top: 20,
-                  child: _buildFingerLabel('Middle', data.middle),
+                  child: _buildFingerLabel('Middle', data?.middle),
                 ),
                 // Ring
                 Positioned(
                   right: 80,
                   top: 40,
-                  child: _buildFingerLabel('Ring', data.ring),
+                  child: _buildFingerLabel('Ring', data?.ring),
                 ),
                 // Pinky
                 Positioned(
                   right: 20,
                   top: 100,
-                  child: _buildFingerLabel('Pinky', data.pinky),
+                  child: _buildFingerLabel('Pinky', data?.pinky),
                 ),
                 // Palm/Grip
                 Positioned(
                   bottom: 120,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
                     decoration: BoxDecoration(
-                      color: AppTheme.primaryColor.withOpacity(0.2),
+                      color: AppTheme.primaryColor.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(color: AppTheme.primaryColor),
                     ),
                     child: Text(
-                      'Grip: ${data.grip}',
-                      style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primaryColor),
+                      data == null
+                          ? 'Grip: --\nNo signal'
+                          : 'Grip: ${data.grip}',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.primaryColor,
+                      ),
                     ),
                   ),
                 ),
@@ -77,24 +86,22 @@ class HandVizScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildFingerLabel(String name, int angle) {
-    // If angle > 60, highlight it to indicate significant bending
-    bool isBent = angle > 60;
+  Widget _buildFingerLabel(String name, int? angle) {
     return Column(
       children: [
         Text(name, style: const TextStyle(fontSize: 12, color: Colors.grey)),
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: isBent ? AppTheme.primaryColor : AppTheme.backgroundColor,
+            color: AppTheme.backgroundColor,
             shape: BoxShape.circle,
-            border: Border.all(color: isBent ? AppTheme.primaryColor : Colors.grey),
+            border: Border.all(color: AppTheme.primaryColor),
           ),
           child: Text(
-            '$angle°',
-            style: TextStyle(
+            angle == null ? '--' : '$angle°',
+            style: const TextStyle(
               fontWeight: FontWeight.bold,
-              color: isBent ? AppTheme.backgroundColor : Colors.white,
+              color: Colors.white,
             ),
           ),
         ),

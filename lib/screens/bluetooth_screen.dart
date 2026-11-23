@@ -1,178 +1,302 @@
-import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
-import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
-import 'package:permission_handler/permission_handler.dart';
+import 'dart:async';
+
+import 'package:material_ui/material_ui.dart';
+import 'package:flutter_classic_bluetooth/flutter_classic_bluetooth.dart';
 import 'package:provider/provider.dart';
+
 import '../providers/glove_data_provider.dart';
-import '../utils/theme.dart';
 import 'main_wrapper.dart';
+import 'settings_screen.dart';
 
 class BluetoothScreen extends StatefulWidget {
-  const BluetoothScreen({Key? key}) : super(key: key);
-
+  const BluetoothScreen({super.key});
   @override
   State<BluetoothScreen> createState() => _BluetoothScreenState();
 }
 
 class _BluetoothScreenState extends State<BluetoothScreen> {
-  BluetoothState _bluetoothState = BluetoothState.UNKNOWN;
-  List<BluetoothDevice> _devicesList = [];
+  final _bluetooth = FlutterClassicBluetooth();
+  final List<BtcDevice> _devicesList = [];
+  StreamSubscription<BtcAdapterState>? _adapterSubscription;
+  StreamSubscription<BtcDevice>? _discoverySubscription;
+  StreamSubscription<bool>? _discoveryStateSubscription;
+  bool _enabled = false;
   bool _isDiscovering = false;
+  bool _busy = false;
+  String? _error;
 
   @override
   void initState() {
     super.initState();
-    _requestPermissions();
-    
-    FlutterBluetoothSerial.instance.state.then((state) {
-      setState(() {
-        _bluetoothState = state;
-      });
-    });
-
-    FlutterBluetoothSerial.instance.onStateChanged().listen((BluetoothState state) {
-      setState(() {
-        _bluetoothState = state;
-        if (_bluetoothState == BluetoothState.STATE_ON) {
-          _getBondedDevices();
-        }
-      });
-    });
-
-    _getBondedDevices();
+    unawaited(_initialize());
   }
 
-  Future<void> _requestPermissions() async {
-    Map<Permission, PermissionStatus> statuses = await [
-      Permission.bluetoothConnect,
-      Permission.bluetoothScan,
-      Permission.location,
-    ].request();
-    
-    if (statuses[Permission.bluetoothConnect]!.isGranted) {
-      _getBondedDevices();
+  void _showError(Object error) {
+    if (!mounted) return;
+    setState(() {
+      _error = error.toString();
+      _busy = false;
+      _isDiscovering = false;
+    });
+  }
+
+  Future<bool> _requestPermissions() async {
+    final result = await _bluetooth.requestPermissions(
+      permissions: const {BtcPermission.scan, BtcPermission.connect},
+    );
+    if (result == BtcPermissionStatus.granted ||
+        result == BtcPermissionStatus.notRequired) {
+      return true;
     }
+    _showError(
+      result == BtcPermissionStatus.permanentlyDenied
+          ? 'Bluetooth permission denied. Enable Nearby devices in app settings.'
+          : 'Bluetooth permission is required to connect the glove.',
+    );
+    return false;
   }
 
-  void _getBondedDevices() async {
+  Future<void> _initialize() async {
     try {
-      List<BluetoothDevice> devices = await FlutterBluetoothSerial.instance.getBondedDevices();
-      setState(() {
-        _devicesList = devices;
-      });
-    } catch (e) {
-      if (kDebugMode) print('Error getting bonded devices: $e');
+      if (!await _requestPermissions() || !mounted) return;
+      _adapterSubscription = _bluetooth.adapterState.listen((state) {
+        if (!mounted) return;
+        setState(() => _enabled = state == BtcAdapterState.on);
+        if (_enabled) unawaited(_getPairedDevices());
+      }, onError: _showError);
+      _discoveryStateSubscription = _bluetooth.discoveryState.listen((value) {
+        if (!mounted) return;
+        setState(() => _isDiscovering = value);
+      }, onError: _showError);
+      _discoverySubscription = _bluetooth.discoveryResults.listen((device) {
+        if (!mounted) return;
+        setState(() {
+          final index = _devicesList.indexWhere(
+            (item) => item.address == device.address,
+          );
+          if (index < 0) {
+            _devicesList.add(device);
+          } else {
+            _devicesList[index] = _devicesList[index].mergedWith(device);
+          }
+        });
+      }, onError: _showError);
+      final enabled = await _bluetooth.isEnabled();
+      if (!mounted) return;
+      setState(() => _enabled = enabled);
+      if (enabled) await _getPairedDevices();
+    } catch (error) {
+      _showError(error);
     }
   }
 
-  void _startDiscovery() {
-    setState(() => _devicesList.clear());
-    FlutterBluetoothSerial.instance.startDiscovery().listen((r) {
+  Future<void> _getPairedDevices() async {
+    try {
+      final devices = await _bluetooth.getPairedDevices();
+      if (!mounted) return;
       setState(() {
-        final existingIndex = _devicesList.indexWhere((element) => element.address == r.device.address);
-        if (existingIndex >= 0) {
-          _devicesList[existingIndex] = r.device;
-        } else {
-          _devicesList.add(r.device);
-        }
+        _devicesList.clear();
+        _devicesList.addAll(devices);
+        _error = null;
       });
-    }).onDone(() {
-      setState(() => _isDiscovering = false);
-    });
+    } catch (error) {
+      _showError(error);
+    }
   }
 
-  void _connectToDevice(BluetoothDevice device) async {
-    final provider = Provider.of<GloveDataProvider>(context, listen: false);
-    await provider.connectToDevice(device);
-    
-    if (provider.isConnected && mounted) {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const MainWrapper()),
-      );
-    } else if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to connect to device.')),
-      );
+  Future<void> _startDiscovery() async {
+    if (!mounted) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      if (!await _requestPermissions() || !mounted) return;
+      // Permission denial on launch can be recovered without recreating the screen.
+      if (_adapterSubscription == null) {
+        await _initialize();
+      }
+      if (!mounted) return;
+      if (!await _bluetooth.isEnabled()) {
+        _showError('Enable Bluetooth before scanning.');
+        return;
+      }
+      if (await _bluetooth.isLocationServiceRequired() &&
+          !await _bluetooth.isLocationServiceEnabled()) {
+        _showError('Enable system Location to scan on Android 11 or earlier.');
+        return;
+      }
+      if (!mounted) return;
+      setState(() {
+        _isDiscovering = true;
+        _busy = false;
+      });
+      await _bluetooth.startDiscovery();
+    } catch (error) {
+      _showError(error);
+    }
+  }
+
+  Future<void> _connectToDevice(BtcDevice device) async {
+    final provider = context.read<GloveDataProvider>();
+    if (!mounted) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      await _bluetooth.stopDiscovery();
+      final connected = await provider.connectToDevice(device);
+      if (!mounted) return;
+      setState(() {
+        _busy = false;
+        _isDiscovering = false;
+      });
+      if (connected && provider.isConnected) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const MainWrapper()),
+        );
+      } else {
+        _showError(
+          provider.connectionError ??
+              'Glove connection closed before it was ready.',
+        );
+      }
+    } catch (error) {
+      _showError(error);
     }
   }
 
   @override
+  void dispose() {
+    unawaited(_adapterSubscription?.cancel());
+    unawaited(_discoverySubscription?.cancel());
+    unawaited(_discoveryStateSubscription?.cancel());
+    unawaited(_bluetooth.stopDiscovery().catchError((Object _) {}));
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final provider = context.watch<GloveDataProvider>();
+    final connecting = _busy || provider.isConnecting;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Connect Glove'),
-      ),
-      body: Column(
-        children: [
-          SwitchListTile(
-            title: const Text('Enable Bluetooth'),
-            value: _bluetoothState.isEnabled,
-            onChanged: (bool value) {
-              future() async {
-                if (value) {
-                  await FlutterBluetoothSerial.instance.requestEnable();
-                } else {
-                  await FlutterBluetoothSerial.instance.requestDisable();
-                }
-              }
-              future().then((_) {
-                setState(() {});
-              });
-            },
-            activeColor: AppTheme.primaryColor,
-          ),
-          const Divider(),
-          ListTile(
-            title: const Text("Paired Devices", style: TextStyle(fontWeight: FontWeight.bold)),
-            trailing: IconButton(
-              icon: const Icon(Icons.refresh),
-              onPressed: _getBondedDevices,
+        actions: [
+          IconButton(
+            tooltip: 'Settings',
+            icon: const Icon(Icons.settings),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const SettingsScreen()),
             ),
           ),
-          Expanded(
-            child: ListView.builder(
-              itemCount: _devicesList.length,
-              itemBuilder: (context, index) {
-                BluetoothDevice device = _devicesList[index];
-                bool isHC05 = device.name?.contains('HC-05') ?? false;
-                
-                return Card(
-                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: ListTile(
-                    leading: Icon(
-                      Icons.bluetooth,
-                      color: isHC05 ? AppTheme.primaryColor : Colors.grey,
-                    ),
-                    title: Text(device.name ?? "Unknown Device"),
-                    subtitle: Text(device.address),
-                    trailing: Consumer<GloveDataProvider>(
-                      builder: (context, provider, child) {
-                        if (provider.isConnecting) {
-                          return const CircularProgressIndicator();
+        ],
+      ),
+      body: SafeArea(
+        child: Column(
+          children: [
+            ListTile(
+              title: Text(
+                _enabled ? 'Bluetooth enabled' : 'Bluetooth disabled',
+              ),
+              trailing: TextButton(
+                onPressed: connecting
+                    ? null
+                    : () async {
+                        try {
+                          await _bluetooth.enableBluetooth();
+                          final enabled = await _bluetooth.isEnabled();
+                          if (!mounted) return;
+                          setState(() => _enabled = enabled);
+                          if (_adapterSubscription == null) {
+                            await _initialize();
+                          } else if (enabled) {
+                            await _getPairedDevices();
+                          }
+                        } catch (error) {
+                          _showError(error);
                         }
-                        return ElevatedButton(
-                          onPressed: () => _connectToDevice(device),
-                          child: const Text('Connect'),
+                      },
+                child: const Text('Enable'),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: [
+                  const Expanded(child: Text('Paired and discovered devices')),
+                  TextButton(
+                    onPressed: connecting || _isDiscovering
+                        ? null
+                        : _startDiscovery,
+                    child: const Text('Scan'),
+                  ),
+                  IconButton(
+                    tooltip: 'Refresh paired devices',
+                    onPressed: connecting ? null : _getPairedDevices,
+                    icon: const Icon(Icons.refresh),
+                  ),
+                ],
+              ),
+            ),
+            if (_isDiscovering || connecting || provider.isReconnecting)
+              const LinearProgressIndicator(),
+            if (provider.isReconnecting)
+              const Padding(
+                padding: EdgeInsets.all(12),
+                child: Text('Reconnecting to glove…'),
+              ),
+            if (_error ?? provider.connectionError case final String error)
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text(
+                  error,
+                  style: const TextStyle(color: Colors.redAccent),
+                ),
+              ),
+            if (provider.sessionMessage case final String message)
+              Padding(padding: const EdgeInsets.all(12), child: Text(message)),
+            Expanded(
+              child: _devicesList.isEmpty
+                  ? const Center(
+                      child: Text(
+                        'Pair your glove in Android Bluetooth settings,\nthen refresh or scan.',
+                        textAlign: TextAlign.center,
+                      ),
+                    )
+                  : ListView.builder(
+                      itemCount: _devicesList.length,
+                      itemBuilder: (context, index) {
+                        final device = _devicesList[index];
+                        return Card(
+                          margin: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
+                          child: ListTile(
+                            leading: const Icon(Icons.bluetooth),
+                            title: Text(device.displayName),
+                            subtitle: Text(device.address),
+                            trailing: ElevatedButton(
+                              onPressed: connecting
+                                  ? null
+                                  : () => _connectToDevice(device),
+                              child: const Text('Connect'),
+                            ),
+                          ),
                         );
                       },
                     ),
-                  ),
-                );
-              },
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: TextButton(
-              onPressed: () {
-                Navigator.of(context).pushReplacement(
-                  MaterialPageRoute(builder: (_) => const MainWrapper()),
-                );
-              },
-              child: const Text('Continue without Glove (Demo Mode)', style: TextStyle(color: Colors.grey)),
-            ),
-          )
-        ],
+            if (_error != null)
+              TextButton(
+                onPressed: _bluetooth.openAppSettings,
+                child: const Text('Open app settings'),
+              ),
+          ],
+        ),
       ),
     );
   }

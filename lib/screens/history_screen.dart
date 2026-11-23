@@ -1,11 +1,12 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:intl/intl.dart';
+
 import '../models/session.dart';
 import '../services/storage_service.dart';
 import '../utils/theme.dart';
 
 class HistoryScreen extends StatefulWidget {
-  const HistoryScreen({Key? key}) : super(key: key);
+  const HistoryScreen({super.key});
 
   @override
   State<HistoryScreen> createState() => _HistoryScreenState();
@@ -26,6 +27,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     final sessions = await _storageService.getSessions();
     // Sort descending by date
     sessions.sort((a, b) => b.startTime.compareTo(a.startTime));
+    if (!mounted) return;
     setState(() {
       _sessions = sessions;
       _isLoading = false;
@@ -50,15 +52,23 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 context: context,
                 builder: (context) => AlertDialog(
                   title: const Text('Clear History'),
-                  content: const Text('Are you sure you want to delete all saved sessions?'),
+                  content: const Text(
+                    'Are you sure you want to delete all saved sessions?',
+                  ),
                   actions: [
-                    TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Cancel'),
+                    ),
                     TextButton(
                       onPressed: () {
                         Navigator.pop(context);
                         _clearHistory();
                       },
-                      child: const Text('Clear', style: TextStyle(color: AppTheme.errorColor)),
+                      child: const Text(
+                        'Clear',
+                        style: TextStyle(color: AppTheme.errorColor),
+                      ),
                     ),
                   ],
                 ),
@@ -70,53 +80,66 @@ class _HistoryScreenState extends State<HistoryScreen> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _sessions.isEmpty
-              ? const Center(child: Text('No sessions saved yet.'))
-              : ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: _sessions.length,
-                  itemBuilder: (context, index) {
-                    final session = _sessions[index];
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 16),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+          ? const Center(child: Text('No sessions saved yet.'))
+          : ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: _sessions.length,
+              itemBuilder: (context, index) {
+                final session = _sessions[index];
+                return Card(
+                  margin: const EdgeInsets.only(bottom: 16),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  DateFormat('MMM d, y • h:mm a').format(session.startTime),
-                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                                ),
-                                Text(
-                                  '${session.duration.inMinutes}m ${session.duration.inSeconds % 60}s',
-                                  style: const TextStyle(color: AppTheme.primaryColor, fontWeight: FontWeight.bold),
-                                ),
-                              ],
+                            Text(
+                              DateFormat('MMM d, y • h:mm a')
+                                  .format(session.startTime),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
                             ),
-                            const Divider(height: 24),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceAround,
-                              children: [
-                                _buildStat('Max Grip', session.maxGrip.toString()),
-                                _buildStat('Avg Movement', '${session.averageMovement}°'),
-                              ],
+                            Text(
+                              '${session.duration.inMinutes}m ${session.duration.inSeconds % 60}s',
+                              style: const TextStyle(
+                                color: AppTheme.primaryColor,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ],
                         ),
-                      ),
-                    );
-                  },
-                ),
+                        const Divider(height: 24),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceAround,
+                          children: [
+                            _buildStat('Max Grip', session.maxGrip.toString()),
+                            _buildStat(
+                              'Avg Movement',
+                              '${session.averageMovement}°',
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
     );
   }
 
   Widget _buildStat(String label, String value) {
     return Column(
       children: [
-        Text(value, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+        Text(
+          value,
+          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+        ),
         const SizedBox(height: 4),
         Text(label, style: const TextStyle(color: Colors.grey)),
       ],

@@ -1,132 +1,104 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
+
 import '../providers/glove_data_provider.dart';
 import '../widgets/progress_bar.dart';
-import '../utils/theme.dart';
+import '../widgets/vibration_panel.dart';
 import 'settings_screen.dart';
 
 class DashboardScreen extends StatelessWidget {
-  const DashboardScreen({Key? key}) : super(key: key);
-
+  const DashboardScreen({super.key});
   @override
   Widget build(BuildContext context) {
+    final provider = context.watch<GloveDataProvider>();
+    final data = provider.currentData;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Live Dashboard'),
         actions: [
-          Consumer<GloveDataProvider>(
-            builder: (context, provider, child) {
-              return Icon(
-                provider.isConnected ? Icons.bluetooth_connected : Icons.bluetooth_disabled,
-                color: provider.isConnected ? AppTheme.primaryColor : Colors.grey,
-              );
-            },
+          Icon(
+            provider.isConnected
+                ? Icons.bluetooth_connected
+                : Icons.bluetooth_disabled,
           ),
-          const SizedBox(width: 16),
           IconButton(
+            tooltip: 'Settings',
             icon: const Icon(Icons.settings),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const SettingsScreen()),
-              );
-            },
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const SettingsScreen()),
+            ),
           ),
         ],
       ),
-      body: Consumer<GloveDataProvider>(
-        builder: (context, provider, child) {
-          final data = provider.currentData;
-          
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildStatusCard(provider.isConnected, data.grip),
-                const SizedBox(height: 24),
-                Text('Finger Bending Angles', style: Theme.of(context).textTheme.titleLarge),
-                const SizedBox(height: 16),
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      children: [
-                        AnimatedProgressBar(label: 'Thumb', value: (data.thumb / 90.0).clamp(0.0, 1.0)),
-                        AnimatedProgressBar(label: 'Index', value: (data.index / 90.0).clamp(0.0, 1.0)),
-                        AnimatedProgressBar(label: 'Middle', value: (data.middle / 90.0).clamp(0.0, 1.0)),
-                        AnimatedProgressBar(label: 'Ring', value: (data.ring / 90.0).clamp(0.0, 1.0)),
-                        AnimatedProgressBar(label: 'Pinky', value: (data.pinky / 90.0).clamp(0.0, 1.0)),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 24),
-                Text('Grip Pressure', style: Theme.of(context).textTheme.titleLarge),
-                const SizedBox(height: 16),
-                Center(
-                  child: Stack(
-                    alignment: Alignment.center,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
                     children: [
-                      SizedBox(
-                        height: 200,
-                        width: 200,
-                        child: TweenAnimationBuilder<double>(
-                          tween: Tween<double>(begin: 0, end: (data.grip / 1023.0).clamp(0.0, 1.0)),
-                          duration: const Duration(milliseconds: 300),
-                          builder: (context, value, child) {
-                            return CircularProgressIndicator(
-                              value: value,
-                              strokeWidth: 15,
-                              backgroundColor: Colors.grey.withOpacity(0.2),
-                              valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.primaryColor),
-                            );
-                          },
-                        ),
+                      const Text('System Status'),
+                      Text(
+                        provider.status,
+                        style: Theme.of(context).textTheme.headlineSmall,
                       ),
-                      Column(
-                        children: [
-                          Text(
-                            data.grip.toString(),
-                            style: const TextStyle(fontSize: 48, fontWeight: FontWeight.bold, color: AppTheme.primaryColor),
-                          ),
-                          const Text('RAW FORCE', style: TextStyle(color: Colors.grey)),
-                        ],
-                      ),
+                      if (provider.connectedDevice case final device?)
+                        Text(device.displayName),
                     ],
                   ),
                 ),
-              ],
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildStatusCard(bool isConnected, int grip) {
-    String status = isConnected ? (grip > 500 ? "Excellent Grip!" : "Keep Moving") : "Disconnected";
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: isConnected 
-              ? [const Color(0xFF00FFCC), const Color(0xFF0088AA)] 
-              : [Colors.grey.shade800, Colors.grey.shade600],
-        ),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('System Status', style: TextStyle(color: Colors.black54, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 8),
-          Text(
-            status,
-            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                'Finger Bending Angles',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    children: [
+                      AnimatedProgressBar(label: 'Thumb', angle: data?.thumb),
+                      AnimatedProgressBar(label: 'Index', angle: data?.index),
+                      AnimatedProgressBar(label: 'Middle', angle: data?.middle),
+                      AnimatedProgressBar(label: 'Ring', angle: data?.ring),
+                      AnimatedProgressBar(label: 'Pinky', angle: data?.pinky),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    children: [
+                      const Text('Grip Force · raw (0–1023)'),
+                      Text(
+                        data?.grip.toString() ?? '--',
+                        style: Theme.of(context).textTheme.displayMedium,
+                      ),
+                      if (data == null)
+                        const Text('No signal')
+                      else
+                        LinearProgressIndicator(
+                          value: data.grip / 1023,
+                          minHeight: 12,
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              VibrationPanel(key: ValueKey(provider.connectedDevice)),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
