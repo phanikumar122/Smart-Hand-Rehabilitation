@@ -1,4 +1,7 @@
 import 'package:material_ui/material_ui.dart';
+
+import '../l10n/app_strings.dart';
+
 import 'package:provider/provider.dart';
 
 import '../providers/glove_data_provider.dart';
@@ -14,7 +17,6 @@ class HapticControlPanel extends StatefulWidget {
 class _HapticControlPanelState extends State<HapticControlPanel> {
   bool _sending = false;
   String? _error;
-  static const _fingers = ['Thumb', 'Index', 'Middle', 'Ring', 'Pinky'];
 
   Future<void> _send(bool enabled, [int? finger]) async {
     final provider = context.read<GloveDataProvider>();
@@ -54,21 +56,23 @@ class _HapticControlPanelState extends State<HapticControlPanel> {
           child: Column(
             children: [
               Text(
-                'Vibration Controls',
+                context.strings.vibrationControls,
                 style: Theme.of(context).textTheme.titleLarge,
               ),
               Text(
                 provider.legacyFirmware
-                    ? 'Legacy firmware: commands are sent without state confirmation.'
-                    : 'Shows outputs reported by the glove. A motor command selects Manual mode.',
+                    ? context.strings.legacyUnconfirmed
+                    : context.strings.motorManualHint,
               ),
               const SizedBox(height: 12),
               Text(
-                'Mode: ${provider.hapticMode == null
-                    ? 'Unknown'
-                    : provider.hapticMode == HapticMode.manual
-                    ? 'Manual'
-                    : 'Automatic'}',
+                context.strings.modeLabel(
+                  provider.hapticMode == null
+                      ? context.strings.unknown
+                      : provider.hapticMode == HapticMode.manual
+                      ? context.strings.manual
+                      : context.strings.automatic,
+                ),
               ),
               if (!provider.legacyFirmware)
                 Wrap(
@@ -79,13 +83,13 @@ class _HapticControlPanelState extends State<HapticControlPanel> {
                       onPressed: enabled
                           ? () => _mode(HapticMode.automatic)
                           : null,
-                      child: const Text('Automatic'),
+                      child: Text(context.strings.automatic),
                     ),
                     OutlinedButton(
                       onPressed: enabled
                           ? () => _mode(HapticMode.manual)
                           : null,
-                      child: const Text('Manual'),
+                      child: Text(context.strings.manual),
                     ),
                   ],
                 ),
@@ -96,11 +100,11 @@ class _HapticControlPanelState extends State<HapticControlPanel> {
                 children: [
                   ElevatedButton(
                     onPressed: enabled ? () => _send(true) : null,
-                    child: const Text('All on'),
+                    child: Text(context.strings.allOn),
                   ),
                   OutlinedButton(
                     onPressed: enabled ? () => _send(false) : null,
-                    child: const Text('All off'),
+                    child: Text(context.strings.allOff),
                   ),
                 ],
               ),
@@ -110,17 +114,17 @@ class _HapticControlPanelState extends State<HapticControlPanel> {
                 if (i > 0) const Divider(height: 1),
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
-                  title: Text(_fingers[i]),
+                  title: Text(context.strings.fingerName(i)),
                   subtitle: Text(
                     (provider.confirmedMotorMask == null
-                            ? 'Output unknown'
+                            ? context.strings.unconfirmed
                             : provider.confirmedMotorMask! & (1 << i) != 0
-                            ? 'Reported output: On'
-                            : 'Reported output: Off') +
+                            ? context.strings.on
+                            : context.strings.off) +
                         (provider.commandState == CommandState.sending ||
                                 provider.commandState ==
                                     CommandState.sentUnconfirmed
-                            ? '\nRequested: ${provider.requestedMotorMask & (1 << i) != 0 ? 'On' : 'Off'}'
+                            ? '\n${context.strings.requestedState(provider.requestedMotorMask & (1 << i) != 0 ? context.strings.on : context.strings.off)}'
                             : ''),
                   ),
                   value: (provider.confirmedMotorMask ?? 0) & (1 << i) != 0,
@@ -130,16 +134,16 @@ class _HapticControlPanelState extends State<HapticControlPanel> {
               if (provider.commandMessage != null)
                 Semantics(
                   liveRegion: true,
-                  child: Text(provider.commandMessage!),
+                  child: Text(context.message(provider.commandMessage!)),
                 ),
               if (provider.safetyMessage != null)
                 Text(
-                  provider.safetyMessage!,
+                  context.message(provider.safetyMessage!),
                   style: TextStyle(color: Theme.of(context).colorScheme.error),
                 ),
               if (_error != null)
                 Text(
-                  _error!,
+                  context.message(_error!),
                   style: TextStyle(color: Theme.of(context).colorScheme.error),
                 ),
             ],

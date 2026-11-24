@@ -1,4 +1,8 @@
 import 'package:material_ui/material_ui.dart';
+
+import '../l10n/app_strings.dart';
+import '../l10n/app_locale_controller.dart';
+
 import 'package:provider/provider.dart';
 
 import '../providers/glove_data_provider.dart';
@@ -12,23 +16,57 @@ class SettingsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<GloveDataProvider>();
+    final languages = AppLocaleScope.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Settings')),
+      appBar: AppBar(title: Text(context.strings.settings)),
       body: ResponsivePage(
         maxWidth: 720,
         child: ListView(
           children: [
-            const AppPageHeader(
-              eyebrow: 'Preferences',
-              title: 'App settings',
-              subtitle:
-                  'Adjust appearance, connection behavior, and your data.',
+            SectionHeader(title: context.strings.language),
+            const SizedBox(height: 10),
+            ClinicalCard(
+              padding: EdgeInsets.zero,
+              child: RadioGroup<String>(
+                groupValue: languages.locale?.languageCode ?? 'system',
+                onChanged: (code) async {
+                  if (code == null) return;
+                  try {
+                    await languages.setLocale(
+                      code == 'system' ? null : Locale(code),
+                    );
+                  } catch (error) {
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(context.message(error))),
+                    );
+                  }
+                },
+                child: Column(
+                  children: [
+                    for (final option in [
+                      ('system', context.strings.deviceLanguage),
+                      ('en', 'English'),
+                      ('te', 'తెలుగు'),
+                      ('hi', 'हिन्दी'),
+                    ])
+                      RadioListTile<String>(
+                        value: option.$1,
+                        title: Text(option.$2),
+                        selected:
+                            (languages.locale?.languageCode ?? 'system') ==
+                            option.$1,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 2,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
             ),
             const SizedBox(height: 24),
-            const SectionHeader(
-              title: 'Appearance',
-              caption: 'Black-and-white themes',
-            ),
+            SectionHeader(title: context.strings.appearance),
             const SizedBox(height: 10),
             ClinicalCard(
               child: AnimatedBuilder(
@@ -36,11 +74,12 @@ class SettingsScreen extends StatelessWidget {
                 builder: (context, _) {
                   final controller = AppThemeController.instance;
                   final labels = {
-                    ThemeMode.system: 'System',
-                    ThemeMode.light: 'Light',
-                    ThemeMode.dark: 'Dark',
+                    ThemeMode.system: context.strings.systemTheme,
+                    ThemeMode.light: context.strings.lightTheme,
+                    ThemeMode.dark: context.strings.darkTheme,
                   };
-                  if (MediaQuery.textScalerOf(context).scale(14) > 21) {
+                  if (context.strings.localeName != 'en' ||
+                      MediaQuery.textScalerOf(context).scale(14) > 21) {
                     return Wrap(
                       spacing: 8,
                       runSpacing: 8,
@@ -55,16 +94,19 @@ class SettingsScreen extends StatelessWidget {
                     );
                   }
                   return SegmentedButton<ThemeMode>(
-                    segments: const [
+                    segments: [
                       ButtonSegment(
                         value: ThemeMode.system,
-                        label: Text('System'),
+                        label: Text(context.strings.systemTheme),
                       ),
                       ButtonSegment(
                         value: ThemeMode.light,
-                        label: Text('Light'),
+                        label: Text(context.strings.lightTheme),
                       ),
-                      ButtonSegment(value: ThemeMode.dark, label: Text('Dark')),
+                      ButtonSegment(
+                        value: ThemeMode.dark,
+                        label: Text(context.strings.darkTheme),
+                      ),
                     ],
                     selected: {controller.mode},
                     showSelectedIcon: false,
@@ -75,10 +117,7 @@ class SettingsScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 24),
-            const SectionHeader(
-              title: 'Connection',
-              caption: 'Keep your glove in reach',
-            ),
+            SectionHeader(title: context.strings.connection),
             const SizedBox(height: 10),
             ClinicalCard(
               padding: EdgeInsets.zero,
@@ -89,10 +128,8 @@ class SettingsScreen extends StatelessWidget {
                       horizontal: 18,
                       vertical: 6,
                     ),
-                    title: const Text('Auto Reconnect'),
-                    subtitle: const Text(
-                      'Retry a lost connection up to 3 times, 2 seconds apart.',
-                    ),
+                    title: Text(context.strings.autoReconnect),
+                    subtitle: Text(context.strings.autoReconnectHint),
                     secondary: const Icon(Icons.sync_rounded),
                     value: provider.autoReconnect,
                     onChanged: (value) async {
@@ -101,46 +138,47 @@ class SettingsScreen extends StatelessWidget {
                       } catch (error) {
                         if (!context.mounted) return;
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text(error.toString())),
+                          SnackBar(content: Text(context.message(error))),
                         );
                       }
                     },
                   ),
                   if (provider.isConnected) ...[
                     const Divider(height: 1),
-                    SwitchListTile(
-                      title: const Text('Use legacy firmware'),
-                      subtitle: const Text(
-                        'For older gloves only. Calibration, motor state, and command delivery cannot be confirmed.',
-                      ),
-                      value: provider.legacyFirmware,
-                      onChanged:
-                          provider.commandPending ||
-                              provider.isSessionActive ||
-                              provider.supportsProtocol
-                          ? null
-                          : (value) async {
-                              try {
-                                await provider.setLegacyFirmwareMode(value);
-                              } catch (error) {
-                                if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text(error.toString())),
-                                  );
+                    if (!provider.supportsProtocol)
+                      SwitchListTile(
+                        title: Text(context.strings.legacyFirmware),
+                        subtitle: Text(context.strings.legacyFirmwareHint),
+                        value: provider.legacyFirmware,
+                        onChanged:
+                            provider.commandPending ||
+                                provider.isSessionActive ||
+                                provider.supportsProtocol
+                            ? null
+                            : (value) async {
+                                try {
+                                  await provider.setLegacyFirmwareMode(value);
+                                } catch (error) {
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(context.message(error)),
+                                      ),
+                                    );
+                                  }
                                 }
-                              }
-                            },
-                    ),
-                    const Divider(height: 1),
+                              },
+                      ),
+                    if (!provider.supportsProtocol) const Divider(height: 1),
                     ListTile(
                       contentPadding: const EdgeInsets.symmetric(
                         horizontal: 18,
                         vertical: 4,
                       ),
-                      title: const Text('Disconnect Glove'),
+                      title: Text(context.strings.disconnectGlove),
                       subtitle: Text(
                         provider.connectedDevice?.displayName ??
-                            'Connected device',
+                            context.strings.connectedDevice,
                       ),
                       leading: const Icon(Icons.bluetooth_disabled_rounded),
                       trailing: const Icon(Icons.chevron_right_rounded),
@@ -157,13 +195,8 @@ class SettingsScreen extends StatelessWidget {
             const CalibrationPanel(),
             const SizedBox(height: 24),
             SectionHeader(
-              title: 'Data & privacy',
-              caption: 'Saved only on this device',
-              action: StatusPill(
-                label: 'On-device',
-                icon: Icons.shield_outlined,
-                tone: Theme.of(context).colorScheme.tertiary,
-              ),
+              title: context.strings.dataPrivacy,
+              caption: context.strings.storedOnDevice,
             ),
             const SizedBox(height: 10),
             ClinicalCard(
@@ -173,10 +206,8 @@ class SettingsScreen extends StatelessWidget {
                   horizontal: 18,
                   vertical: 8,
                 ),
-                title: const Text('Clear All Session Data'),
-                subtitle: const Text(
-                  'Permanently delete saved rehabilitation history',
-                ),
+                title: Text(context.strings.clearSessionData),
+                subtitle: Text(context.strings.clearSessionDataHint),
                 leading: Icon(
                   Icons.delete_forever_rounded,
                   color: Theme.of(context).colorScheme.error,
@@ -187,16 +218,16 @@ class SettingsScreen extends StatelessWidget {
                     context: context,
                     builder: (dialogContext) => AlertDialog(
                       icon: const Icon(Icons.warning_amber_rounded),
-                      title: const Text('Clear Data'),
-                      content: const Text('This action cannot be undone.'),
+                      title: Text(context.strings.clearData),
+                      content: Text(context.strings.cannotUndo),
                       actions: [
                         TextButton(
                           onPressed: () => Navigator.pop(dialogContext, false),
-                          child: const Text('Cancel'),
+                          child: Text(context.strings.cancel),
                         ),
                         TextButton(
                           onPressed: () => Navigator.pop(dialogContext, true),
-                          child: const Text('Clear'),
+                          child: Text(context.strings.clear),
                         ),
                       ],
                     ),
@@ -206,13 +237,13 @@ class SettingsScreen extends StatelessWidget {
                     await StorageService().clearSessions();
                     if (!context.mounted) return;
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Session history cleared.')),
+                      SnackBar(content: Text(context.strings.historyCleared)),
                     );
                   } catch (error) {
                     if (!context.mounted) return;
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text('Could not clear history: $error'),
+                        content: Text(context.strings.historyClearFailed),
                       ),
                     );
                   }

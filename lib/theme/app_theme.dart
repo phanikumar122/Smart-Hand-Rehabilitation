@@ -113,7 +113,17 @@ class AppTheme {
   static ThemeData get lightTheme => _theme(_lightScheme);
   static ThemeData get darkTheme => _theme(_darkScheme);
 
-  static ThemeData _theme(ColorScheme scheme) {
+  static ThemeData forLocale(Brightness brightness, String languageCode) =>
+      _theme(
+        brightness == Brightness.dark ? _darkScheme : _lightScheme,
+        fontFamily: switch (languageCode) {
+          'te' => 'NotoSansTelugu',
+          'hi' => 'NotoSansDevanagari',
+          _ => null,
+        },
+      );
+
+  static ThemeData _theme(ColorScheme scheme, {String? fontFamily}) {
     final dark = scheme.brightness == Brightness.dark;
     final base = ThemeData(
       useMaterial3: true,
@@ -122,23 +132,25 @@ class AppTheme {
       scaffoldBackgroundColor: scheme.surface,
       canvasColor: scheme.surface,
       applyElevationOverlayColor: false,
+      fontFamily: fontFamily,
+      fontFamilyFallback: const ['NotoSansTelugu', 'NotoSansDevanagari'],
     );
     final textTheme = base.textTheme.copyWith(
       displayLarge: base.textTheme.displayLarge?.copyWith(
         fontWeight: FontWeight.w700,
-        letterSpacing: -2,
+        letterSpacing: fontFamily == null ? -2 : 0,
       ),
       displayMedium: base.textTheme.displayMedium?.copyWith(
         fontWeight: FontWeight.w700,
-        letterSpacing: -1.5,
+        letterSpacing: fontFamily == null ? -1.5 : 0,
       ),
       headlineLarge: base.textTheme.headlineLarge?.copyWith(
         fontWeight: FontWeight.w700,
-        letterSpacing: -0.8,
+        letterSpacing: fontFamily == null ? -0.8 : 0,
       ),
       headlineMedium: base.textTheme.headlineMedium?.copyWith(
         fontWeight: FontWeight.w700,
-        letterSpacing: -0.5,
+        letterSpacing: fontFamily == null ? -0.5 : 0,
       ),
       titleLarge: base.textTheme.titleLarge?.copyWith(
         fontWeight: FontWeight.w600,

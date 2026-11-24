@@ -1,9 +1,13 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:material_ui/material_ui.dart';
+
+import '../l10n/app_strings.dart';
+
 import 'package:provider/provider.dart';
 
 import '../models/sensor_data.dart';
 import '../providers/glove_data_provider.dart';
+import '../theme/app_theme.dart';
 import '../widgets/app_components.dart';
 import 'session_history_view.dart';
 
@@ -24,26 +28,21 @@ class _ProgressScreenState extends State<ProgressScreen> {
       body: ResponsivePage(
         child: Column(
           children: [
-            const AppPageHeader(
-              eyebrow: 'Your recovery',
-              title: 'Progress',
-              subtitle:
-                  'Turn live movement into a clearer view of change over time.',
-            ),
+            AppPageHeader(title: context.strings.progress),
             const SizedBox(height: 18),
             SizedBox(
               width: double.infinity,
               child: SegmentedButton<int>(
-                segments: const [
+                segments: [
                   ButtonSegment(
                     value: 0,
                     icon: Icon(Icons.show_chart_rounded),
-                    label: Text('Live trends'),
+                    label: Text(context.strings.liveTrends),
                   ),
                   ButtonSegment(
                     value: 1,
                     icon: Icon(Icons.history_rounded),
-                    label: Text('Sessions'),
+                    label: Text(context.strings.sessions),
                   ),
                 ],
                 selected: {_section},
@@ -57,12 +56,12 @@ class _ProgressScreenState extends State<ProgressScreen> {
               child: _section == 0
                   ? hasLiveData
                         ? const _LiveTrends(key: ValueKey('trends'))
-                        : const EmptyState(
+                        : EmptyState(
                             key: ValueKey('no-signal'),
                             icon: Icons
                                 .signal_cellular_connected_no_internet_0_bar_rounded,
-                            title: 'No signal',
-                            message: 'Live trends will appear as soon as fresh glove readings arrive.',
+                            title: context.strings.noSignal,
+                            message: context.strings.connectForTrends,
                           )
                   : const SessionHistoryView(
                       key: ValueKey('sessions'),
@@ -90,11 +89,10 @@ class _LiveTrendsState extends State<_LiveTrends> {
     final provider = context.watch<GloveDataProvider>();
     final history = provider.history;
     if (history.isEmpty) {
-      return const EmptyState(
+      return EmptyState(
         icon: Icons.signal_cellular_connected_no_internet_0_bar_rounded,
-        title: 'No signal',
-        message:
-            'Live trends will appear as soon as fresh glove readings arrive.',
+        title: context.strings.noSignal,
+        message: context.strings.connectForTrends,
       );
     }
     final cutoff = history.last.timestamp.subtract(
@@ -109,10 +107,13 @@ class _LiveTrendsState extends State<_LiveTrends> {
         Align(
           alignment: Alignment.centerRight,
           child: SegmentedButton<int>(
-            segments: const [
-              ButtonSegment(value: 30, label: Text('Live')),
-              ButtonSegment(value: 60, label: Text('1 min')),
-              ButtonSegment(value: 300, label: Text('5 min')),
+            segments: [
+              ButtonSegment(value: 30, label: Text(context.strings.live)),
+              ButtonSegment(value: 60, label: Text(context.strings.oneMinute)),
+              ButtonSegment(
+                value: 300,
+                label: Text(context.strings.fiveMinutes),
+              ),
             ],
             selected: {_windowSeconds},
             showSelectedIcon: false,
@@ -122,8 +123,8 @@ class _LiveTrendsState extends State<_LiveTrends> {
         ),
         const SizedBox(height: 14),
         _TrendCard(
-          title: 'Grip Force · raw (0–1023)',
-          caption: 'Pressure over the selected window',
+          title: context.strings.grip,
+          caption: context.strings.sensorReading,
           history: filtered,
           accessor: (data) => data.grip.toDouble(),
           maxY: 1023,
@@ -131,8 +132,8 @@ class _LiveTrendsState extends State<_LiveTrends> {
         ),
         const SizedBox(height: 14),
         _TrendCard(
-          title: 'Average Finger Angle · degrees',
-          caption: 'Combined mobility across all five fingers',
+          title: context.strings.averageBend,
+          caption: context.strings.degrees,
           history: filtered,
           accessor: (data) =>
               (data.thumb + data.index + data.middle + data.ring + data.pinky) /
@@ -250,7 +251,7 @@ class _TrendCard extends StatelessWidget {
                 ),
                 borderData: FlBorderData(show: false),
               ),
-              duration: const Duration(milliseconds: 300),
+              duration: AppMotion.duration(context, AppMotion.fast),
             ),
           ),
         ],

@@ -1,7 +1,11 @@
 import 'package:material_ui/material_ui.dart';
+
+import '../l10n/app_strings.dart';
+
 import 'package:provider/provider.dart';
 
 import '../providers/glove_data_provider.dart';
+import '../theme/app_theme.dart';
 import 'connection_screen.dart';
 import 'today_screen.dart';
 import 'live_hand_screen.dart';
@@ -24,30 +28,29 @@ class _AppShellState extends State<AppShell> {
       return const ConnectionScreen();
     }
     final screens = [
-      TodayScreen(onStartSession: () => setState(() => _currentIndex = 2)),
+      TodayScreen(
+        onStartSession: () => setState(() => _currentIndex = 2),
+        onViewLive: () => setState(() => _currentIndex = 1),
+        onViewProgress: () => setState(() => _currentIndex = 3),
+      ),
       const LiveHandScreen(),
       const SessionScreen(),
       const ProgressScreen(),
     ];
     return Scaffold(
-      body: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 240),
-        switchInCurve: Curves.easeOutCubic,
-        switchOutCurve: Curves.easeInCubic,
-        transitionBuilder: (child, animation) => FadeTransition(
-          opacity: animation,
-          child: SlideTransition(
-            position: Tween(
-              begin: const Offset(0.02, 0.02),
-              end: Offset.zero,
-            ).animate(animation),
-            child: child,
-          ),
-        ),
-        child: KeyedSubtree(
-          key: ValueKey(_currentIndex),
-          child: screens[_currentIndex],
-        ),
+      body: IndexedStack(
+        index: _currentIndex,
+        children: [
+          for (var index = 0; index < screens.length; index++)
+            TickerMode(
+              enabled: index == _currentIndex,
+              child: AnimatedOpacity(
+                opacity: index == _currentIndex ? 1 : 0,
+                duration: AppMotion.duration(context, AppMotion.fast),
+                child: screens[index],
+              ),
+            ),
+        ],
       ),
       bottomNavigationBar: SafeArea(
         top: false,
@@ -55,26 +58,26 @@ class _AppShellState extends State<AppShell> {
           selectedIndex: _currentIndex,
           onDestinationSelected: (index) =>
               setState(() => _currentIndex = index),
-          destinations: const [
+          destinations: [
             NavigationDestination(
               icon: Icon(Icons.home_outlined),
               selectedIcon: Icon(Icons.home_rounded),
-              label: 'Today',
+              label: context.strings.today,
             ),
             NavigationDestination(
               icon: Icon(Icons.front_hand_outlined),
               selectedIcon: Icon(Icons.front_hand_rounded),
-              label: 'Live',
+              label: context.strings.live,
             ),
             NavigationDestination(
               icon: Icon(Icons.play_circle_outline_rounded),
               selectedIcon: Icon(Icons.play_circle_fill_rounded),
-              label: 'Session',
+              label: context.strings.session,
             ),
             NavigationDestination(
               icon: Icon(Icons.insights_outlined),
               selectedIcon: Icon(Icons.insights_rounded),
-              label: 'Progress',
+              label: context.strings.progress,
             ),
           ],
         ),

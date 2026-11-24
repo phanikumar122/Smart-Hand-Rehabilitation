@@ -1,4 +1,7 @@
 import 'package:material_ui/material_ui.dart';
+
+import '../l10n/app_strings.dart';
+
 import 'package:intl/intl.dart';
 
 import '../models/rehab_session.dart';
@@ -40,18 +43,16 @@ class _SessionHistoryViewState extends State<SessionHistoryView> {
       context: context,
       builder: (context) => AlertDialog(
         icon: const Icon(Icons.delete_sweep_outlined),
-        title: const Text('Clear History'),
-        content: const Text(
-          'Delete every saved rehabilitation session? This cannot be undone.',
-        ),
+        title: Text(context.strings.clearHistory),
+        content: Text(context.strings.clearHistoryConfirm),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text(context.strings.cancel),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Clear'),
+            child: Text(context.strings.clear),
           ),
         ],
       ),
@@ -66,10 +67,10 @@ class _SessionHistoryViewState extends State<SessionHistoryView> {
     final body = _isLoading
         ? const Center(child: CircularProgressIndicator())
         : _sessions.isEmpty
-        ? const EmptyState(
+        ? EmptyState(
             icon: Icons.auto_graph_rounded,
-            title: 'No sessions saved yet.',
-            message: 'Complete a guided session to begin building your recovery timeline.',
+            title: context.strings.noSessions,
+            message: context.strings.completeSessionHint,
           )
         : RefreshIndicator(
             onRefresh: _loadSessions,
@@ -80,105 +81,142 @@ class _SessionHistoryViewState extends State<SessionHistoryView> {
               itemBuilder: (context, index) {
                 if (index == 0) {
                   return SectionHeader(
-                    title: 'Session History',
-                    caption:
-                        '${_sessions.length} completed ${_sessions.length == 1 ? 'session' : 'sessions'}',
+                    title: context.strings.sessionHistory,
+                    caption: context.strings.completedSessions(
+                      _sessions.length,
+                    ),
                     action: IconButton(
-                      tooltip: 'Clear History',
+                      tooltip: context.strings.clearHistory,
                       onPressed: _confirmClear,
                       icon: const Icon(Icons.delete_outline_rounded),
                     ),
                   );
                 }
                 final session = _sessions[index - 1];
-                return _SessionCard(session: session, index: index - 1);
+                return _SessionCard(session: session);
               },
             ),
           );
     if (widget.embedded) return body;
     return Scaffold(
-      appBar: AppBar(title: const Text('Session History')),
+      appBar: AppBar(title: Text(context.strings.sessionHistory)),
       body: ResponsivePage(child: body),
     );
   }
 }
 
 class _SessionCard extends StatelessWidget {
-  const _SessionCard({required this.session, required this.index});
+  const _SessionCard({required this.session});
   final RehabSession session;
-  final int index;
 
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    return StaggeredReveal(
-      index: index.clamp(0, 4),
+    final heading = Row(
+      children: [
+        Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: colors.primaryContainer,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Icon(Icons.check_rounded, color: colors.primary),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                DateFormat.yMMMd(context.strings.localeName)
+                    .format(session.startTime),
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              Text(
+                DateFormat.Hm(context.strings.localeName)
+                    .format(session.startTime),
+                style: Theme.of(context).textTheme.bodySmall
+                    ?.copyWith(color: colors.onSurfaceVariant),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+    final duration = StatusPill(
+      label: context.strings.sessionDuration(
+        session.duration.inMinutes,
+        session.duration.inSeconds % 60,
+      ),
+      icon: Icons.timer_outlined,
+    );
+    return AppFadeIn(
       child: ClinicalCard(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: colors.primaryContainer,
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: Icon(Icons.check_rounded, color: colors.primary),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final stack =
+                    MediaQuery.textScalerOf(context).scale(16) > 24 ||
+                    (context.strings.localeName != 'en' &&
+                        constraints.maxWidth < 340);
+                if (stack) {
+                  return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        DateFormat('MMM d, y').format(session.startTime),
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      Text(
-                        DateFormat('h:mm a').format(session.startTime),
-                        style: Theme.of(context).textTheme.bodySmall
-                            ?.copyWith(color: colors.onSurfaceVariant),
-                      ),
-                    ],
-                  ),
-                ),
-                StatusPill(
-                  label:
-                      '${session.duration.inMinutes}m ${session.duration.inSeconds % 60}s',
-                  icon: Icons.timer_outlined,
-                ),
-              ],
+                    children: [heading, const SizedBox(height: 12), duration],
+                  );
+                }
+                return Row(
+                  children: [
+                    Expanded(child: heading),
+                    duration,
+                  ],
+                );
+              },
             ),
             const SizedBox(height: 18),
-            Row(
-              children: [
-                Expanded(
-                  child: _CompactStat(
-                    label: 'Max grip',
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final stats = [
+                  _CompactStat(
+                    label: context.strings.maxGrip,
                     value: '${session.maxGrip}',
                     tone: colors.secondary,
                   ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _CompactStat(
-                    label: 'Avg movement',
+                  _CompactStat(
+                    label: context.strings.averageMovement,
                     value: '${session.averageMovement}°',
                     tone: colors.primary,
                   ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _CompactStat(
-                    label: 'Readings',
+                  _CompactStat(
+                    label: context.strings.readings,
                     value: '${session.readingCount}',
                     tone: colors.tertiary,
                   ),
-                ),
-              ],
+                ];
+                if (MediaQuery.textScalerOf(context).scale(16) > 24) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      for (final stat in stats)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: stat,
+                        ),
+                    ],
+                  );
+                }
+                return Row(
+                  children: [
+                    for (var index = 0; index < stats.length; index++) ...[
+                      if (index > 0) const SizedBox(width: 10),
+                      Expanded(child: stats[index]),
+                    ],
+                  ],
+                );
+              },
             ),
           ],
         ),
@@ -207,7 +245,7 @@ class _CompactStat extends StatelessWidget {
       ),
       Text(
         label,
-        maxLines: 1,
+        maxLines: 2,
         overflow: TextOverflow.ellipsis,
         style: Theme.of(context).textTheme.bodySmall
             ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),

@@ -2,6 +2,9 @@ import 'dart:async';
 
 import 'package:flutter_classic_bluetooth/flutter_classic_bluetooth.dart';
 import 'package:material_ui/material_ui.dart';
+
+import '../l10n/app_strings.dart';
+
 import 'package:provider/provider.dart';
 
 import '../providers/glove_data_provider.dart';
@@ -202,11 +205,9 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
         child: ListView(
           children: [
             AppPageHeader(
-              eyebrow: 'Step 1 of 3 · Connect',
-              title: 'Connect Glove',
-              subtitle: 'Connect your glove to begin live movement tracking.',
+              title: context.strings.connectGlove,
               trailing: IconButton.filledTonal(
-                tooltip: 'Settings',
+                tooltip: context.strings.settings,
                 icon: const Icon(Icons.tune_rounded),
                 onPressed: () => Navigator.push(
                   context,
@@ -230,12 +231,9 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
               spacing: 12,
               runSpacing: 4,
               children: [
-                const SizedBox(
+                SizedBox(
                   width: 210,
-                  child: SectionHeader(
-                    title: 'Nearby devices',
-                    caption: 'Paired and discovered devices',
-                  ),
+                  child: SectionHeader(title: context.strings.nearbyDevices),
                 ),
                 Row(
                   mainAxisSize: MainAxisSize.min,
@@ -245,10 +243,10 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
                           ? null
                           : _startDiscovery,
                       icon: const Icon(Icons.radar_rounded),
-                      label: const Text('Scan'),
+                      label: Text(context.strings.scan),
                     ),
                     IconButton(
-                      tooltip: 'Refresh paired devices',
+                      tooltip: context.strings.refreshDevices,
                       onPressed: connecting ? null : _getPairedDevices,
                       icon: const Icon(Icons.refresh_rounded),
                     ),
@@ -259,9 +257,9 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
             if (_isDiscovering || connecting || provider.isReconnecting)
               const LinearProgressIndicator(),
             if (provider.isReconnecting)
-              const Padding(
+              Padding(
                 padding: EdgeInsets.all(8),
-                child: Text('Reconnecting to glove…'),
+                child: Text(context.strings.reconnecting),
               ),
             if (_error ?? provider.connectionError case final String error)
               Padding(
@@ -273,20 +271,23 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
                     children: [
                       Icon(Icons.error_outline_rounded, color: colors.error),
                       const SizedBox(width: 10),
-                      Expanded(child: Text(error)),
+                      Expanded(child: Text(context.message(error))),
                     ],
                   ),
                 ),
               ),
             if (provider.sessionMessage case final String message)
-              Padding(padding: const EdgeInsets.all(8), child: Text(message)),
+              Padding(
+                padding: const EdgeInsets.all(8),
+                child: Text(context.message(message)),
+              ),
             if (_devicesList.isEmpty)
-              const SizedBox(
+              SizedBox(
                 height: 260,
                 child: EmptyState(
                   icon: Icons.bluetooth_searching_rounded,
-                  title: 'Your glove will appear here',
-                  message: 'Pair it in Android Bluetooth settings, then refresh or scan.',
+                  title: context.strings.noDevices,
+                  message: context.strings.pairGloveHint,
                 ),
               )
             else
@@ -305,7 +306,7 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
             if (_error != null)
               TextButton(
                 onPressed: _bluetooth.openAppSettings,
-                child: const Text('Open app settings'),
+                child: Text(context.strings.openSettings),
               ),
           ],
         ),
@@ -351,13 +352,15 @@ class _BluetoothStatus extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                enabled ? 'Bluetooth enabled' : 'Bluetooth disabled',
+                enabled
+                    ? context.strings.bluetoothEnabled
+                    : context.strings.bluetoothDisabled,
                 style: Theme.of(context).textTheme.titleMedium,
               ),
               Text(
                 enabled
-                    ? 'Ready to discover your glove.'
-                    : 'Turn Bluetooth on to continue.',
+                    ? context.strings.scanOrSelect
+                    : context.strings.turnOnToConnect,
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ],
@@ -367,7 +370,7 @@ class _BluetoothStatus extends StatelessWidget {
     );
     final enable = TextButton(
       onPressed: connecting ? null : onEnable,
-      child: const Text('Enable'),
+      child: Text(context.strings.enable),
     );
     if (MediaQuery.textScalerOf(context).scale(16) > 24) {
       return Column(
@@ -433,7 +436,7 @@ class _DeviceCard extends StatelessWidget {
           ),
           ElevatedButton(
             onPressed: connecting ? null : () => onConnect(device),
-            child: const Text('Connect'),
+            child: Text(context.strings.connect),
           ),
         ],
       ),

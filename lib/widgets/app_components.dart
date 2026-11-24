@@ -29,13 +29,13 @@ class ResponsivePage extends StatelessWidget {
 class AppPageHeader extends StatelessWidget {
   const AppPageHeader({
     super.key,
-    required this.eyebrow,
+    this.eyebrow,
     required this.title,
     this.subtitle,
     this.trailing,
   });
 
-  final String eyebrow;
+  final String? eyebrow;
   final String title;
   final String? subtitle;
   final Widget? trailing;
@@ -46,15 +46,17 @@ class AppPageHeader extends StatelessWidget {
     final content = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          eyebrow.toUpperCase(),
-          style: Theme.of(context).textTheme.labelMedium?.copyWith(
-            color: colors.onSurfaceVariant,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 1.2,
+        if (eyebrow != null) ...[
+          Text(
+            eyebrow!.toUpperCase(),
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+              color: colors.onSurfaceVariant,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 1.2,
+            ),
           ),
-        ),
-        const SizedBox(height: 6),
+          const SizedBox(height: 6),
+        ],
         Text(title, style: Theme.of(context).textTheme.headlineMedium),
         if (subtitle != null) ...[
           const SizedBox(height: 6),
@@ -70,7 +72,10 @@ class AppPageHeader extends StatelessWidget {
       builder: (context, constraints) {
         final stack =
             MediaQuery.textScalerOf(context).scale(16) > 24 ||
-            constraints.maxWidth < (trailing is IconButton ? 280 : 340);
+            constraints.maxWidth <
+                (trailing is IconButton || (subtitle == null && eyebrow == null)
+                    ? 280
+                    : 340);
         if (stack && trailing != null) {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -302,27 +307,17 @@ class EmptyState extends StatelessWidget {
   }
 }
 
-class StaggeredReveal extends StatelessWidget {
-  const StaggeredReveal({super.key, required this.index, required this.child});
+class AppFadeIn extends StatelessWidget {
+  const AppFadeIn({super.key, required this.child});
 
-  final int index;
   final Widget child;
 
   @override
   Widget build(BuildContext context) => TweenAnimationBuilder<double>(
     tween: Tween(begin: 0, end: 1),
-    duration: AppMotion.duration(
-      context,
-      Duration(milliseconds: 320 + index * 70),
-    ),
+    duration: AppMotion.duration(context, AppMotion.fast),
     curve: Curves.easeOutCubic,
-    builder: (context, value, child) => Opacity(
-      opacity: value,
-      child: Transform.translate(
-        offset: Offset(0, 14 * (1 - value)),
-        child: child,
-      ),
-    ),
+    builder: (context, value, child) => Opacity(opacity: value, child: child),
     child: child,
   );
 }

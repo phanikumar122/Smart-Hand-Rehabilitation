@@ -1,5 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 
+import '../l10n/app_strings.dart';
+
 import 'connection_screen.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -19,22 +21,30 @@ class _SplashScreenState extends State<SplashScreen>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 900),
+      duration: const Duration(milliseconds: 320),
     );
     _fadeAnimation = CurvedAnimation(
       parent: _controller,
       curve: Curves.easeOutCubic,
     );
 
-    _controller.forward();
-
-    Future.delayed(const Duration(milliseconds: 1500), () {
+    Future.delayed(const Duration(milliseconds: 650), () {
       if (mounted) {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (_) => const ConnectionScreen()),
         );
       }
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MediaQuery.of(context).disableAnimations) {
+      _controller.value = 1;
+    } else if (_controller.status == AnimationStatus.dismissed) {
+      _controller.forward();
+    }
   }
 
   @override
@@ -70,16 +80,19 @@ class _SplashScreenState extends State<SplashScreen>
                   ),
                   const SizedBox(height: 28),
                   Text(
-                    'Smart Glove App',
-                    style: Theme.of(context).textTheme.headlineLarge
-                        ?.copyWith(letterSpacing: -1),
+                    context.strings.appTitle,
+                    style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                      letterSpacing: context.strings.localeName == 'en'
+                          ? -1
+                          : 0,
+                    ),
                   ),
                   const SizedBox(height: 10),
                   Text(
-                    'SMART REHABILITATION',
+                    context.strings.appSubtitle,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      letterSpacing: 2,
+                      letterSpacing: context.strings.localeName == 'en' ? 2 : 0,
                     ),
                   ),
                 ],

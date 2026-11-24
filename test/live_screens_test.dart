@@ -14,7 +14,10 @@ import 'package:smart_glove_app/screens/live_hand_screen.dart';
 import 'package:smart_glove_app/screens/app_shell.dart';
 import 'package:smart_glove_app/screens/session_screen.dart';
 import 'package:smart_glove_app/screens/settings_screen.dart';
+import 'package:smart_glove_app/screens/splash_screen.dart';
 import 'package:smart_glove_app/widgets/haptic_control_panel.dart';
+import 'package:smart_glove_app/theme/app_theme.dart';
+import 'package:smart_glove_app/main.dart';
 
 import 'support/bluetooth_radio.dart';
 import 'support/serial_link.dart';
@@ -27,14 +30,16 @@ void main() {
   late BluetoothRadio radio;
   late FlutterClassicBluetoothPlatform platform;
   late DateTime now;
-  Widget app(Widget home, {double textScale = 1}) =>
+  Widget app(Widget home, {double textScale = 1, bool reduceMotion = false}) =>
       ChangeNotifierProvider.value(
         value: provider,
         child: MaterialApp(
-          theme: ThemeData.dark(),
+          theme: AppTheme.darkTheme,
           builder: (context, child) => MediaQuery(
-            data: MediaQuery.of(context)
-                .copyWith(textScaler: TextScaler.linear(textScale)),
+            data: MediaQuery.of(context).copyWith(
+              textScaler: TextScaler.linear(textScale),
+              disableAnimations: reduceMotion,
+            ),
             child: child!,
           ),
           home: home,
@@ -106,7 +111,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(NavigationDestination), findsNWidgets(4));
     for (final label in ['Today', 'Live', 'Session', 'Progress']) {
-      expect(find.text(label), findsOneWidget);
+      expect(find.widgetWithText(NavigationDestination, label), findsOneWidget);
     }
     await tester.tap(find.text('Progress'));
     await tester.pumpAndSettle();
@@ -114,6 +119,107 @@ void main() {
     expect(find.text('Sessions'), findsOneWidget);
     await tester.pumpWidget(const SizedBox());
   });
+  testWidgets(
+    'selecting a finger shows its reading and All restores the average',
+    (tester) async {
+      await tester.runAsync(() => provider.connectToDevice(device));
+      receive('10,20,30,40,50,600\n');
+      await tester.pumpWidget(app(const LiveHandScreen()));
+      await tester.pumpAndSettle();
+      final selectedReading = find.byKey(const ValueKey('selected-bend'));
+      expect(selectedReading, findsOneWidget);
+      expect(tester.widget<Text>(selectedReading).data, '30°');
+      await tester.tap(find.widgetWithText(ChoiceChip, 'Thumb'));
+      await tester.pumpAndSettle();
+      expect(tester.widget<Text>(selectedReading).data, '10°');
+      receive('65,20,30,40,50,600\n');
+      await tester.pumpAndSettle();
+      expect(tester.widget<Text>(selectedReading).data, '65°');
+      await tester.tap(find.widgetWithText(ChoiceChip, 'All'));
+      await tester.pumpAndSettle();
+      expect(tester.widget<Text>(selectedReading).data, '41°');
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
+
+  testWidgets('finger focus survives switching tabs', (tester) async {
+    await tester.runAsync(() => provider.connectToDevice(device));
+    receive('10,20,30,40,50,600\n');
+    await tester.pumpWidget(app(const AppShell()));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(NavigationDestination, 'Live'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(ChoiceChip, 'Thumb'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(NavigationDestination, 'Progress'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(NavigationDestination, 'Live'));
+    await tester.pumpAndSettle();
+    expect(
+      tester.widget<Text>(find.byKey(const ValueKey('selected-bend'))).data,
+      '10°',
+    );
+    await tester.pumpWidget(const SizedBox());
+  });
+  testWidgets(
+    'finger movement animates with constant grip and retargets without jumping',
+    (tester) async {
+      await tester.runAsync(() => provider.connectToDevice(device));
+      receive('0,0,0,0,0,600\n');
+      await tester.pumpWidget(app(const LiveHandScreen()));
+      await tester.pumpAndSettle();
+      final canvas = find.byKey(const ValueKey('hand-canvas'));
+      expect(canvas, findsOneWidget);
+      Future<Uint8List> pixels() async {
+        final image = await captureImage(tester.element(canvas));
+        final bytes = (await image.toByteData())!.buffer.asUint8List();
+        image.dispose();
+        return bytes;
+      }
+
+      final open = await tester.runAsync(pixels);
+      receive('90,0,0,0,0,600\n');
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 60));
+      final moving = await tester.runAsync(pixels);
+      expect(moving, isNot(equals(open)));
+      receive('45,0,0,0,0,600\n');
+      await tester.pump();
+      final retargeted = await tester.runAsync(pixels);
+      expect(retargeted, equals(moving));
+      await tester.pumpAndSettle();
+      final settled = await tester.runAsync(pixels);
+      expect(settled, isNot(equals(retargeted)));
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
+
+  testWidgets(
+    'focused finger clears its reading when the live signal expires',
+    (tester) async {
+      await tester.runAsync(() => provider.connectToDevice(device));
+      receive('10,20,30,40,50,600\n');
+      await tester.pumpWidget(app(const LiveHandScreen(), reduceMotion: true));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(ChoiceChip, 'Ring'));
+      await tester.pumpAndSettle();
+      expect(
+        tester.widget<Text>(find.byKey(const ValueKey('selected-bend'))).data,
+        '40°',
+      );
+      now = now.add(const Duration(seconds: 2));
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 550)),
+      );
+      await tester.pump();
+      expect(
+        tester.widget<Text>(find.byKey(const ValueKey('selected-bend'))).data,
+        '--',
+      );
+      expect(find.text('No signal'), findsWidgets);
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
   testWidgets(
     'session start requires a recent packet and elapsed survives navigation',
     (tester) async {
@@ -145,6 +251,48 @@ void main() {
       await tester.pumpWidget(const SizedBox());
     },
   );
+  testWidgets(
+    'language selection changes the whole app to native Telugu and Hindi',
+    (tester) async {
+      await tester.pumpWidget(
+        ChangeNotifierProvider.value(
+          value: provider,
+          child: const SmartGloveApp(),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 650));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Settings'));
+      await tester.pumpAndSettle();
+      expect(find.text('తెలుగు'), findsOneWidget);
+      await tester.tap(find.text('తెలుగు'));
+      await tester.pumpAndSettle();
+      expect(find.text('అమరికలు'), findsOneWidget);
+      expect(find.text('భాష'), findsOneWidget);
+      await tester.tap(find.text('हिन्दी'));
+      await tester.pumpAndSettle();
+      expect(find.text('सेटिंग्स'), findsNothing);
+      expect(find.text('व्यवस्था'), findsOneWidget);
+      expect(find.text('भाषा'), findsOneWidget);
+      await tester.tap(find.byType(BackButton));
+      await tester.pumpAndSettle();
+      expect(find.text('दस्ताना जोड़ें'), findsOneWidget);
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
+  testWidgets('reduced motion shows the splash mark immediately', (
+    tester,
+  ) async {
+    await tester.pumpWidget(app(const SplashScreen(), reduceMotion: true));
+    final fade = find.descendant(
+      of: find.byType(SplashScreen),
+      matching: find.byType(FadeTransition),
+    );
+    expect(tester.widget<FadeTransition>(fade).opacity.value, 1);
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(const Duration(milliseconds: 1500));
+  });
   testWidgets('charts draw only measured data and hide stale signal', (
     tester,
   ) async {

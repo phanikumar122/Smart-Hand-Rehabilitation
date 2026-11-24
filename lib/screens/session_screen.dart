@@ -1,11 +1,15 @@
 import 'dart:math' as math;
 
 import 'package:material_ui/material_ui.dart';
+
+import '../l10n/app_strings.dart';
+
 import 'package:provider/provider.dart';
 
 import '../providers/glove_data_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_components.dart';
+import 'settings_screen.dart';
 
 class SessionScreen extends StatelessWidget {
   const SessionScreen({super.key});
@@ -27,7 +31,13 @@ class SessionScreen extends StatelessWidget {
       await provider.stopSession();
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(provider.sessionMessage ?? 'Session stopped.')),
+        SnackBar(
+          content: Text(
+            provider.sessionMessage == null
+                ? context.strings.sessionStopped
+                : context.message(provider.sessionMessage!),
+          ),
+        ),
       );
     }
 
@@ -37,15 +47,13 @@ class SessionScreen extends StatelessWidget {
           slivers: [
             SliverToBoxAdapter(
               child: AppPageHeader(
-                eyebrow: provider.isSessionActive
-                    ? 'Recording'
-                    : 'Guided recovery',
-                title: 'Rehabilitation Session',
-                subtitle: provider.isSessionActive
-                    ? 'Move at a comfortable pace. You are doing well.'
-                    : 'Take a breath, settle your hand, and begin when ready.',
+                title: context.strings.session,
                 trailing: StatusPill(
-                  label: provider.status,
+                  label: provider.isSessionActive
+                      ? context.strings.recording
+                      : provider.hasLiveData
+                      ? context.strings.live
+                      : context.strings.noSignal,
                   icon: provider.hasLiveData
                       ? Icons.sensors_rounded
                       : Icons.sensors_off_rounded,
@@ -62,12 +70,21 @@ class SessionScreen extends StatelessWidget {
                     SizedBox(
                       width: 250,
                       height: 250,
-                      child: CustomPaint(
-                        painter: _SessionRingPainter(
-                          active: provider.isSessionActive,
-                          progress: (seconds % 60) / 60,
-                          primary: colors.primary,
-                          track: colors.surfaceContainerHighest,
+                      child: TweenAnimationBuilder<double>(
+                        tween: Tween(
+                          begin: seconds.toDouble(),
+                          end: seconds.toDouble(),
+                        ),
+                        duration: AppMotion.duration(context, AppMotion.fast),
+                        curve: Curves.linear,
+                        builder: (context, elapsed, child) => CustomPaint(
+                          painter: _SessionRingPainter(
+                            active: provider.isSessionActive,
+                            progress: (elapsed % 60) / 60,
+                            primary: colors.primary,
+                            track: colors.surfaceContainerHighest,
+                          ),
+                          child: child,
                         ),
                         child: Center(
                           child: FittedBox(
@@ -87,35 +104,25 @@ class SessionScreen extends StatelessWidget {
                                     size: 28,
                                   ),
                                   const SizedBox(height: 8),
-                                  AnimatedSwitcher(
-                                    duration: AppMotion.duration(
-                                      context,
-                                      AppMotion.fast,
-                                    ),
-                                    child: Text(
-                                      time,
-                                      key: ValueKey(time),
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .displayMedium
-                                          ?.copyWith(
-                                            fontFeatures: const [
-                                              FontFeature.tabularFigures(),
-                                            ],
-                                          ),
-                                    ),
+                                  Text(
+                                    time,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .displayMedium
+                                        ?.copyWith(
+                                          fontFeatures: const [
+                                            FontFeature.tabularFigures(),
+                                          ],
+                                        ),
                                   ),
                                   Text(
-                                    provider.isSessionActive
-                                        ? 'SESSION TIME'
-                                        : 'READY',
+                                    context.strings.elapsedTime,
                                     textAlign: TextAlign.center,
                                     style: Theme.of(context)
                                         .textTheme
                                         .labelSmall
                                         ?.copyWith(
                                           color: colors.onSurfaceVariant,
-                                          letterSpacing: 1.6,
                                         ),
                                   ),
                                 ],
@@ -144,10 +151,10 @@ class SessionScreen extends StatelessWidget {
                         ),
                         label: Text(
                           provider.isSavingSession
-                              ? 'Saving…'
+                              ? context.strings.saving
                               : provider.isSessionActive
-                              ? 'Stop Session'
-                              : 'Start Session',
+                              ? context.strings.stopSession
+                              : context.strings.startSession,
                         ),
                         style: provider.isSessionActive
                             ? ElevatedButton.styleFrom(
@@ -157,28 +164,28 @@ class SessionScreen extends StatelessWidget {
                             : null,
                       ),
                     ),
-                    const SizedBox(height: 14),
-                    Text(
-                      provider.isSessionActive
-                          ? '${provider.sessionReadingCount} readings recorded'
-                          : provider.canStartSession
-                          ? 'Ready to begin'
-                          : provider.hasLiveData && !provider.legacyFirmware
-                          ? 'Open Settings to confirm firmware status and complete calibration before recording.'
-                          : 'Connect the glove and wait for a live signal.',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.bodyMedium
-                          ?.copyWith(color: colors.onSurfaceVariant),
-                    ),
-                    if (!provider.hasLiveData)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 6),
-                        child: Text(
-                          'No signal',
-                          style: Theme.of(context).textTheme.labelMedium
-                              ?.copyWith(color: colors.error),
-                        ),
+                    if (!provider.isSessionActive &&
+                        !provider.canStartSession) ...[
+                      const SizedBox(height: 14),
+                      Text(
+                        provider.hasLiveData && !provider.legacyFirmware
+                            ? context.strings.calibrateInSettings
+                            : context.strings.connectToBegin,
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.bodyMedium
+                            ?.copyWith(color: colors.onSurfaceVariant),
                       ),
+                      if (provider.hasLiveData)
+                        TextButton(
+                          onPressed: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const SettingsScreen(),
+                            ),
+                          ),
+                          child: Text(context.strings.openSettings),
+                        ),
+                    ],
                   ],
                 ),
               ),
@@ -189,7 +196,7 @@ class SessionScreen extends StatelessWidget {
                 children: [
                   Expanded(
                     child: MetricTile(
-                      label: 'Live grip',
+                      label: context.strings.liveGrip,
                       value: data?.grip.toString() ?? '--',
                       icon: Icons.back_hand_outlined,
                       tone: colors.secondary,
@@ -198,9 +205,11 @@ class SessionScreen extends StatelessWidget {
                   const SizedBox(width: 12),
                   Expanded(
                     child: MetricTile(
-                      label: 'Readings',
-                      value: '${provider.sessionReadingCount}',
-                      icon: Icons.data_usage_rounded,
+                      label: context.strings.averageBend,
+                      value: data == null
+                          ? '--'
+                          : '${(data.thumb + data.index + data.middle + data.ring + data.pinky) ~/ 5}°',
+                      icon: Icons.gesture_rounded,
                       tone: colors.tertiary,
                     ),
                   ),
@@ -220,7 +229,7 @@ class SessionScreen extends StatelessWidget {
                           color: colors.primary,
                         ),
                         const SizedBox(width: 12),
-                        Expanded(child: Text(message)),
+                        Expanded(child: Text(context.message(message))),
                       ],
                     ),
                   ),

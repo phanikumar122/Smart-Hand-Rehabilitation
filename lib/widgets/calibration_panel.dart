@@ -1,4 +1,7 @@
 import 'package:material_ui/material_ui.dart';
+
+import '../l10n/app_strings.dart';
+
 import 'package:provider/provider.dart';
 
 import '../models/firmware_status.dart';
@@ -26,52 +29,46 @@ class CalibrationPanel extends StatelessWidget {
         !glove.commandPending &&
         !glove.isSessionActive;
     final message = switch (phase) {
-      CalibrationPhase.open =>
-        'Capturing open hand. Hold still with the FSR unloaded.',
-      CalibrationPhase.closed =>
-        'Capturing bent hand. Hold still without forcing your fingers.',
-      CalibrationPhase.openReady => 'Open hand captured. Bend each finger comfortably, then capture the bent hand.',
-      CalibrationPhase.ready =>
-        'Both positions captured. Save calibration to use these readings.',
-      CalibrationPhase.saving =>
-        'Saving calibration. Keep the glove powered on.',
-      CalibrationPhase.failed => 'Capture failed. Retry with a steady hand, or cancel to keep the previous calibration.',
+      CalibrationPhase.open => context.strings.holdOpen,
+      CalibrationPhase.closed => context.strings.holdBent,
+      CalibrationPhase.openReady => context.strings.openCaptured,
+      CalibrationPhase.ready => context.strings.positionsCaptured,
+      CalibrationPhase.saving => context.strings.savingCalibration,
+      CalibrationPhase.failed => context.strings.captureFailed,
       CalibrationPhase.idle =>
         glove.calibrationValid
-            ? 'Valid calibration loaded. Recalibrate after moving sensors or changing the glove fit.'
-            : 'Calibration is required before recording with upgraded firmware.',
+            ? context.strings.calibratedHint
+            : context.strings.captureOpenHint,
     };
     return ClinicalCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Glove calibration',
+            context.strings.gloveCalibration,
             style: Theme.of(context).textTheme.titleLarge,
           ),
           const SizedBox(height: 8),
           Text(
             glove.firmware == null
                 ? glove.legacyFirmware
-                      ? 'Upgrade the glove firmware to enable guided calibration.'
-                      : 'Connect the glove to read its firmware and calibration status.'
-                : 'Firmware ${glove.firmware!.version} · ${glove.firmware!.saved ? 'Saved calibration' : 'Calibration not saved'}',
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            '1. Open your hand comfortably and remove pressure from the grip sensor.\n'
-            '2. Capture open hand and wait for completion.\n'
-            '3. Bend your fingers within a comfortable range, capture, then save.\n'
-            'Each capture takes about 1.3 seconds. Movement values are normalized estimates.',
+                      ? context.strings.calibrationNeedsUpgrade
+                      : context.strings.connectToCalibrate
+                : context.strings.firmwareStatus(
+                    glove.firmware!.version,
+                    glove.firmware!.saved
+                        ? context.strings.calibrationSaved
+                        : context.strings.calibrationNotSaved,
+                  ),
           ),
           const SizedBox(height: 12),
-          Semantics(liveRegion: true, child: Text(message)),
+          Semantics(liveRegion: true, child: Text(context.message(message))),
           if (glove.calibrationActive || glove.commandPending) ...[
             const SizedBox(height: 8),
             const LinearProgressIndicator(),
           ],
           if (glove.isSessionActive)
-            const Text('Stop the recording session before calibrating.'),
+            Text(context.strings.stopBeforeCalibration),
           const SizedBox(height: 12),
           Wrap(
             spacing: 12,
@@ -81,19 +78,19 @@ class CalibrationPanel extends StatelessWidget {
                 onPressed: enabled && !glove.calibrationActive
                     ? () => _run(glove.calibrateOpen)
                     : null,
-                child: const Text('Capture open hand'),
+                child: Text(context.strings.captureOpen),
               ),
               OutlinedButton(
                 onPressed: enabled && phase == CalibrationPhase.openReady
                     ? () => _run(glove.calibrateClosed)
                     : null,
-                child: const Text('Capture bent hand'),
+                child: Text(context.strings.captureBent),
               ),
               ElevatedButton(
                 onPressed: enabled && phase == CalibrationPhase.ready
                     ? () => _run(glove.saveCalibration)
                     : null,
-                child: const Text('Save calibration'),
+                child: Text(context.strings.saveCalibration),
               ),
               TextButton(
                 onPressed:
@@ -102,13 +99,13 @@ class CalibrationPanel extends StatelessWidget {
                         phase != CalibrationPhase.saving
                     ? () => _run(glove.cancelCalibration)
                     : null,
-                child: const Text('Cancel calibration'),
+                child: Text(context.strings.cancelCalibration),
               ),
               TextButton(
                 onPressed: enabled && !glove.calibrationActive
                     ? () => _run(glove.resetCalibration)
                     : null,
-                child: const Text('Reset calibration'),
+                child: Text(context.strings.resetCalibration),
               ),
               TextButton(
                 onPressed:
@@ -117,7 +114,7 @@ class CalibrationPanel extends StatelessWidget {
                         !glove.legacyFirmware
                     ? () => _run(glove.refreshFirmwareStatus)
                     : null,
-                child: const Text('Refresh status'),
+                child: Text(context.strings.refreshStatus),
               ),
             ],
           ),
@@ -125,11 +122,12 @@ class CalibrationPanel extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(top: 8),
               child: Text(
-                glove.calibrationError!,
+                context.message(glove.calibrationError!),
                 style: TextStyle(color: Theme.of(context).colorScheme.error),
               ),
             ),
-          if (glove.commandMessage != null) Text(glove.commandMessage!),
+          if (glove.commandMessage != null)
+            Text(context.message(glove.commandMessage!)),
         ],
       ),
     );
