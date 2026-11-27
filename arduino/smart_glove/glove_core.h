@@ -147,6 +147,7 @@ public:
     saved_ = active_.valid;
   }
   const SensorFrame &frame() const { return frame_; }
+  bool telemetryReady() const { return filterReady_; }
   const Calibration &calibration() const { return active_; }
   const Calibration &pendingCalibration() const { return candidate_; }
   bool manualMode() const { return manual_; }
@@ -272,6 +273,10 @@ public:
       active_ = candidate_;
       saved_ = active_.valid;
       phase_ = Idle;
+      // Sampling during the write used the old calibration. Do not apply
+      // those requests or publish that frame under the newly committed state.
+      automatic_ = 0;
+      gripActive_ = false;
       filterReady_ = false;
       reply("ACK", "CAL", resetting_ ? "RESET" : "SAVED", true);
     } else {
@@ -349,7 +354,8 @@ private:
   void apply(uint32_t now) {
     uint8_t requested = phase_ != Idle ? 0
                         : manual_      ? manualRequest_
-                                       : automatic_;
+                        : active_.valid && filterReady_ ? automatic_
+                                                        : 0;
     for (uint8_t i = 0; i < 5; ++i) {
       const uint8_t bit = uint8_t(1 << i);
       if ((effective_ & bit) && elapsed(now, onSince_[i], motorLimit)) {
@@ -479,15 +485,17 @@ private:
         }
         return;
       }
-      if (phase_ == Saving) {
+      if (phase_ == Saving && SG_COMPARE(payload, "VIB:ALL,0") != 0) {
         replyConstant(SG_P("ERR"), SG_P("CMD"), SG_P("BUSY"), false);
         return;
       }
-      previousId_ = commandId_;
-      strcpy(previousCommand_, payload);
-      previousReply_[0] = '\0';
+      if (phase_ != Saving) {
+        previousId_ = commandId_;
+        strcpy(previousCommand_, payload);
+        previousReply_[0] = '\0';
+      }
     }
-    if (phase_ == Saving) {
+    if (phase_ == Saving && SG_COMPARE(payload, "VIB:ALL,0") != 0) {
       replyConstant(SG_P("ERR"), SG_P("CMD"), SG_P("BUSY"));
       return;
     }
@@ -533,11 +541,11 @@ private:
         replyConstant(SG_P("ERR"), SG_P("VIB"), SG_P("BAD_STATE"));
         return;
       }
-      if (phase_ != Idle) {
+      const bool on = comma[1] == '1';
+      if (phase_ != Idle && (on || mask != 31)) {
         replyConstant(SG_P("ERR"), SG_P("VIB"), SG_P("CALIBRATING"));
         return;
       }
-      const bool on = comma[1] == '1';
       if (on && (mask & tripped_)) {
         replyConstant(SG_P("ERR"), SG_P("VIB"), SG_P("REARM_REQUIRED"));
         return;
@@ -553,9 +561,15 @@ private:
         manualRequest_ &= uint8_t(~mask);
       apply(now);
       char detail[24];
-      SG_SNPRINTF(detail, sizeof(detail), "%.*s,%c,%u", int(targetSize), target,
-                  comma[1], unsigned(effective_));
-      reply("ACK", "VIB", detail);
+      // AVR libc does not support '*' precision in printf formats.
+      if (mask == 31)
+        SG_SNPRINTF(detail, sizeof(detail), "ALL,%c,%u", comma[1],
+                    unsigned(effective_));
+      else
+        SG_SNPRINTF(detail, sizeof(detail), "%c,%c,%u", target[0], comma[1],
+                    unsigned(effective_));
+      // All-off is allowed during a save without evicting its replay entry.
+      reply("ACK", "VIB", detail, phase_ != Saving);
       return;
     }
     if (SG_COMPARE(payload, "CAL:OPEN") == 0) {

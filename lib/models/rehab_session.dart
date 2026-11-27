@@ -17,6 +17,14 @@ class RehabSession {
     required this.readingCount,
   });
 
+  bool get hasValidMetrics =>
+      readingCount > 0 &&
+      !duration.isNegative &&
+      maxGrip >= 0 &&
+      maxGrip <= 1023 &&
+      averageMovement >= 0 &&
+      averageMovement <= 90;
+
   Map<String, dynamic> toMap() {
     return {
       'id': id,
@@ -29,7 +37,7 @@ class RehabSession {
   }
 
   factory RehabSession.fromMap(Map<String, dynamic> map) {
-    return RehabSession(
+    final session = RehabSession(
       id: map['id'],
       startTime: DateTime.parse(map['startTime']),
       duration: Duration(seconds: map['duration']),
@@ -37,6 +45,11 @@ class RehabSession {
       averageMovement: map['averageMovement'],
       readingCount: map['readingCount'] ?? 0,
     );
+    // Historical summaries without measured readings are not usable records.
+    if (!session.hasValidMetrics) {
+      throw const FormatException('Invalid rehabilitation session metrics.');
+    }
+    return session;
   }
 
   String toJson() => json.encode(toMap());

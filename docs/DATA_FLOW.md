@@ -58,12 +58,12 @@ Existing semantics are retained:
 - A connection is live only after a valid six-field sensor frame less than 1.5 seconds old; watchdog runs every 500 ms.
 - ACK/status/timeout traffic never refreshes sensor freshness or enters measured history.
 - History is an immutable view of at most 3000 readings/five minutes.
-- Sessions require fresh signal, no active/saving session and, for upgraded firmware, valid IDLE calibration.
+- Sessions require fresh signal, no active/saving session and, for upgraded firmware, a sample received after valid IDLE calibration was confirmed. A stale signal, invalid/unknown calibration or disconnect ends an active session at its last accepted reading. Recording does not resume automatically.
 - Calibration commands are blocked during app recording. Only frames received after session start contribute to metrics.
 - Maximum grip is maximum filtered ADC; average movement is the integer mean across five fingers and received frames. Six-field order/ranges and stored schema remain compatible.
 - Zero-reading sessions are discarded; navigation does not reset provider-owned timers.
 - Disconnect clears signal/history/buffers and pending commands, stops recording and saves only sessions with readings.
-- Existing reconnect preference/retry limit (three attempts, two seconds apart) and SharedPreferences storage remain.
+- Existing reconnect preference/retry limit (three attempts, two seconds apart) and SharedPreferences storage remain. Malformed or out-of-range saved records are skipped, deletion reports persistent storage failure, and the Android backup/transfer rules exclude these preferences.
 
 Settings exposes firmware version, validity and guided capture/save/reset/cancel. Haptic panel shows requested state while sending and output reported by ACK/events/status. Safety/errors use text and accessible live-region feedback. Wrap/scroll layouts preserve large-text behavior.
 

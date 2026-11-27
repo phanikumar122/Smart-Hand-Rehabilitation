@@ -93,6 +93,13 @@ class AppLocalizationsTe extends AppLocalizations {
       'చరిత్రను తొలగించలేకపోయాము. మళ్లీ ప్రయత్నించండి.';
 
   @override
+  String get historyLoadFailed =>
+      'సాధన చరిత్రను లోడ్ చేయలేకపోయాము. మళ్లీ ప్రయత్నించండి.';
+
+  @override
+  String get retryHistory => 'చరిత్రను మళ్లీ లోడ్ చేయండి';
+
+  @override
   String get today => 'నేడు';
 
   @override
@@ -227,7 +234,7 @@ class AppLocalizationsTe extends AppLocalizations {
   String get sensorReading => 'పరికర కొలత';
 
   @override
-  String get degrees => 'కోణం';
+  String get movementScale => 'సాధారణీకరించిన కదలిక (0–90), కీళ్ల కోణం కాదు';
 
   @override
   String get clearHistory => 'చరిత్ర తొలగించండి';
@@ -408,6 +415,11 @@ class AppLocalizationsTe extends AppLocalizations {
   String get allOff => 'అన్నీ ఆపండి';
 
   @override
+  String releaseMotor(String finger) {
+    return '$finger కంపనాన్ని ఆపే ఆదేశాన్ని పంపండి';
+  }
+
+  @override
   String get unconfirmed => 'నిర్ధారించలేదు';
 
   @override
@@ -472,6 +484,11 @@ class AppLocalizationsTe extends AppLocalizations {
 
   @override
   String get sessionDiscarded => 'కొలతలు నమోదు కాలేదు; సాధన భద్రపరచలేదు.';
+
+  @override
+  String sessionInterrupted(int count) {
+    return 'రికార్డింగ్ మధ్యలో ఆగింది. $count కొలతలు భద్రపరిచాము.';
+  }
 
   @override
   String sessionSaved(int count) {

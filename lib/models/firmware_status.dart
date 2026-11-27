@@ -38,8 +38,8 @@ class FirmwareStatus {
       'FAILED': CalibrationPhase.failed,
     };
     final phase = phases[fields[3]];
-    final mask = int.tryParse(fields[5]);
-    if (phase == null || mask == null || mask < 0 || mask > 31) return null;
+    final mask = parseMotorMask(fields[5]);
+    if (phase == null || mask == null) return null;
     return FirmwareStatus(
       version: fields[0],
       mode: fields[1] == 'AUTO' ? HapticMode.automatic : HapticMode.manual,
@@ -48,5 +48,11 @@ class FirmwareStatus {
       saved: fields[4] == '1',
       motorMask: mask,
     );
+  }
+
+  static int? parseMotorMask(String text) {
+    if (!RegExp(r'^[0-9]{1,2}$').hasMatch(text)) return null;
+    final mask = int.parse(text, radix: 10);
+    return mask <= 31 ? mask : null;
   }
 }

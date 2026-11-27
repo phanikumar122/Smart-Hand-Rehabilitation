@@ -21,21 +21,42 @@ class _SessionHistoryViewState extends State<SessionHistoryView> {
   final StorageService _storageService = StorageService();
   List<RehabSession> _sessions = [];
   bool _isLoading = true;
+  bool _loadFailed = false;
+  int _loadRequest = 0;
 
   @override
   void initState() {
     super.initState();
+    StorageService.historyRevision.addListener(_reload);
     _loadSessions();
   }
 
+  void _reload() => _loadSessions();
+
+  @override
+  void dispose() {
+    StorageService.historyRevision.removeListener(_reload);
+    super.dispose();
+  }
+
   Future<void> _loadSessions() async {
-    final sessions = await _storageService.getSessions();
-    sessions.sort((a, b) => b.startTime.compareTo(a.startTime));
-    if (!mounted) return;
-    setState(() {
-      _sessions = sessions;
-      _isLoading = false;
-    });
+    final request = ++_loadRequest;
+    try {
+      final sessions = await _storageService.getSessions();
+      sessions.sort((a, b) => b.startTime.compareTo(a.startTime));
+      if (!mounted || request != _loadRequest) return;
+      setState(() {
+        _sessions = sessions;
+        _isLoading = false;
+        _loadFailed = false;
+      });
+    } catch (_) {
+      if (!mounted || request != _loadRequest) return;
+      setState(() {
+        _isLoading = false;
+        _loadFailed = true;
+      });
+    }
   }
 
   Future<void> _confirmClear() async {
@@ -57,15 +78,31 @@ class _SessionHistoryViewState extends State<SessionHistoryView> {
         ],
       ),
     );
-    if (clear != true) return;
-    await _storageService.clearSessions();
-    await _loadSessions();
+    if (clear != true || !mounted) return;
+    try {
+      await _storageService.clearSessions();
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.strings.historyClearFailed)),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final body = _isLoading
         ? const Center(child: CircularProgressIndicator())
+        : _loadFailed
+        ? EmptyState(
+            icon: Icons.error_outline_rounded,
+            title: context.strings.sessionHistory,
+            message: context.strings.historyLoadFailed,
+            action: TextButton(
+              onPressed: _loadSessions,
+              child: Text(context.strings.retryHistory),
+            ),
+          )
         : _sessions.isEmpty
         ? EmptyState(
             icon: Icons.auto_graph_rounded,
@@ -187,7 +224,7 @@ class _SessionCard extends StatelessWidget {
                   ),
                   _CompactStat(
                     label: context.strings.averageMovement,
-                    value: '${session.averageMovement}°',
+                    value: '${session.averageMovement}/90',
                     tone: colors.primary,
                   ),
                   _CompactStat(

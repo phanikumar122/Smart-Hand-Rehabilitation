@@ -12,6 +12,10 @@ import '../models/firmware_status.dart';
 import '../services/glove_connection.dart';
 import '../services/storage_service.dart';
 
+class CommandSuperseded implements Exception {
+  const CommandSuperseded();
+}
+
 class GloveDataProvider extends ChangeNotifier {
   GloveDataProvider({this.connector = connectGlove, DateTime Function()? now})
     : _now = now ?? DateTime.now {
@@ -35,7 +39,8 @@ class GloveDataProvider extends ChangeNotifier {
   bool _discardFrame = false, _autoReconnect = false;
   String? _connectionError, _sessionMessage;
   bool _isSessionActive = false, _isSavingSession = false;
-  DateTime? _sessionStartTime;
+  DateTime? _sessionStartTime, _lastSessionReading;
+  bool _measurementReady = false;
   Duration _sessionElapsed = Duration.zero;
   int? _sessionMaxGrip;
   int _movementTotal = 0, _sessionReadingCount = 0;
@@ -44,6 +49,8 @@ class GloveDataProvider extends ChangeNotifier {
   HapticMode? _hapticMode;
   int? _confirmedMotorMask;
   int _requestedMotorMask = 0, _nextCommandId = 1;
+  int _rearmMask = 0, _legacyWriteRevision = 0;
+  Future<void>? _nativeWrite;
   bool _legacyFirmware = false;
   bool _supportsProtocol = false;
   _PendingCommand? _pending;
@@ -64,6 +71,7 @@ class GloveDataProvider extends ChangeNotifier {
   String? get safetyMessage => _safetyMessage;
   int? get confirmedMotorMask => _confirmedMotorMask;
   int get requestedMotorMask => _requestedMotorMask;
+  int get rearmMask => _rearmMask;
   bool get calibrationValid => _firmware?.valid ?? false;
   bool get calibrationActive => [
     CalibrationPhase.open,
@@ -89,14 +97,22 @@ class GloveDataProvider extends ChangeNotifier {
       isConnected &&
       _currentData != null &&
       _lastPacket != null &&
-      _now().difference(_lastPacket!) < const Duration(milliseconds: 1500);
+      _isFresh(_now(), _lastPacket!);
+  static bool _isFresh(DateTime now, DateTime reading) {
+    final age = now.difference(reading);
+    return !age.isNegative && age < const Duration(milliseconds: 1500);
+  }
+
+  bool get _validMeasurementContext =>
+      _legacyFirmware ||
+      (calibrationValid && _calibrationPhase == CalibrationPhase.idle);
   bool get canStartSession =>
       hasLiveData &&
+      _measurementReady &&
       !_isSessionActive &&
       !_isSavingSession &&
       !(_pending?.payload.startsWith('CAL:') ?? false) &&
-      (_legacyFirmware ||
-          (calibrationValid && _calibrationPhase == CalibrationPhase.idle));
+      _validMeasurementContext;
   String get status => _isConnecting
       ? 'Connecting'
       : hasLiveData
@@ -168,13 +184,18 @@ class GloveDataProvider extends ChangeNotifier {
         if (state == BtcConnectionState.disconnected) _linkLost(device);
       }, onError: (Object error) => _linkLost(device, error));
       _watchdog = Timer.periodic(const Duration(milliseconds: 500), (_) {
-        if (!hasLiveData) _currentData = null;
+        if (!hasLiveData) {
+          _currentData = null;
+          _invalidateMeasurement();
+        }
         _pruneHistory();
         _notify();
       });
       // A transport write is never treated as a firmware acknowledgement.
       try {
         await _sendPayload('STATUS', quiet: true);
+      } on CommandSuperseded {
+        // A user-requested stop takes priority over the initial STATUS probe.
       } catch (_) {
         if (generation != _generation || _disposed) return false;
         _legacyFirmware = false;
@@ -185,10 +206,14 @@ class GloveDataProvider extends ChangeNotifier {
         if (_pending == null && !_legacyFirmware && isConnected) {
           unawaited(
             _sendPayload('STATUS', quiet: true).catchError((Object error) {
+              if (error is CommandSuperseded || generation != _generation) {
+                return;
+              }
               _confirmedMotorMask = null;
               _firmware = null;
               _hapticMode = null;
               _safetyMessage = 'Glove status unavailable: $error';
+              _invalidateMeasurement();
               _notify();
             }),
           );
@@ -260,6 +285,10 @@ class GloveDataProvider extends ChangeNotifier {
     _hapticMode = null;
     _confirmedMotorMask = null;
     _requestedMotorMask = 0;
+    _rearmMask = 0;
+    _legacyWriteRevision++;
+    _nativeWrite = null;
+    _measurementReady = false;
     _legacyFirmware = false;
     _supportsProtocol = false;
     _calibrationPhase = CalibrationPhase.idle;
@@ -284,7 +313,9 @@ class GloveDataProvider extends ChangeNotifier {
     _buffer.clear();
     _discardFrame = false;
     if (manual) _connectionError = null;
-    final sessionEnd = _isSessionActive ? stopSession() : Future.value(false);
+    final sessionEnd = _isSessionActive
+        ? _stopSession(interrupted: true)
+        : Future.value(false);
     _sessionTimer?.cancel();
     _sessionTimer = null;
     _notify();
@@ -330,13 +361,18 @@ class GloveDataProvider extends ChangeNotifier {
     }
     final data = SensorData.fromCsv(line, timestamp: _now());
     if (data == null) return;
+    if (_lastPacket case final previous?) {
+      if (!_isFresh(data.timestamp, previous)) _invalidateMeasurement();
+    }
     _lastPacket = data.timestamp;
     _sensorWindow?.complete();
     _sensorWindow = null;
     _currentData = data;
     _history.add(data);
     _pruneHistory();
-    if (_isSessionActive) {
+    _measurementReady = _validMeasurementContext;
+    if (_isSessionActive && _measurementReady) {
+      _lastSessionReading = data.timestamp;
       _sessionMaxGrip = _sessionMaxGrip == null || data.grip > _sessionMaxGrip!
           ? data.grip
           : _sessionMaxGrip;
@@ -345,6 +381,11 @@ class GloveDataProvider extends ChangeNotifier {
       _sessionReadingCount++;
     }
     _notify();
+  }
+
+  void _invalidateMeasurement() {
+    _measurementReady = false;
+    if (_isSessionActive) unawaited(_stopSession(interrupted: true));
   }
 
   void _pruneHistory() {
@@ -357,6 +398,7 @@ class GloveDataProvider extends ChangeNotifier {
     if (!canStartSession) return false;
     _isSessionActive = true;
     _sessionStartTime = _now();
+    _lastSessionReading = null;
     _sessionElapsed = Duration.zero;
     _sessionReadingCount = 0;
     _movementTotal = 0;
@@ -370,12 +412,18 @@ class GloveDataProvider extends ChangeNotifier {
     return true;
   }
 
-  Future<bool> stopSession() async {
+  Future<bool> stopSession() => _stopSession(interrupted: !hasLiveData);
+
+  Future<bool> _stopSession({required bool interrupted}) async {
     if (!_isSessionActive || _sessionStartTime == null) return false;
     _isSessionActive = false;
     _sessionTimer?.cancel();
     _sessionTimer = null;
-    _sessionElapsed = _now().difference(_sessionStartTime!);
+    final end = interrupted
+        ? (_lastSessionReading ?? _sessionStartTime!)
+        : _now();
+    final measured = end.difference(_sessionStartTime!);
+    _sessionElapsed = measured.isNegative ? Duration.zero : measured;
     if (_sessionReadingCount == 0) {
       _sessionMessage = 'Session discarded: no sensor readings were recorded.';
       _notify();
@@ -393,7 +441,9 @@ class GloveDataProvider extends ChangeNotifier {
     _notify();
     try {
       await _storageService.saveSession(session);
-      _sessionMessage = 'Session saved (${session.readingCount} readings).';
+      _sessionMessage = interrupted
+          ? 'Recording interrupted. Saved ${session.readingCount} readings.'
+          : 'Session saved (${session.readingCount} readings).';
       return true;
     } catch (error) {
       _sessionMessage = 'Could not save session: $error';
@@ -411,6 +461,7 @@ class GloveDataProvider extends ChangeNotifier {
       throw ArgumentError.value(command, 'command', 'Invalid glove command');
     }
     final payload = command.substring(1, command.length - 1);
+    final urgentStop = payload == 'VIB:ALL,0';
     if (payload.startsWith('CAL:') && _isSessionActive) {
       throw StateError('Stop the recording session before calibration.');
     }
@@ -420,7 +471,21 @@ class GloveDataProvider extends ChangeNotifier {
       }
       final connection = _connection;
       if (connection == null) throw StateError('Glove is disconnected.');
-      await _writeCommand(connection, command);
+      final revision = ++_legacyWriteRevision;
+      if (_nativeWrite case final inProgress? when urgentStop) {
+        try {
+          await inProgress;
+        } catch (_) {
+          // Try OFF if the connection survived the previous failed write.
+        }
+      }
+      if (revision != _legacyWriteRevision || connection != _connection) {
+        throw const CommandSuperseded();
+      }
+      await _trackWrite(connection, command);
+      if (revision != _legacyWriteRevision || connection != _connection) {
+        throw const CommandSuperseded();
+      }
       final fields = payload.substring(4).split(',');
       final mask = fields[0] == 'ALL' ? 31 : 1 << (int.parse(fields[0]) - 1);
       _requestedMotorMask = fields[1] == '1'
@@ -431,7 +496,7 @@ class GloveDataProvider extends ChangeNotifier {
       _notify();
       return;
     }
-    await _sendPayload(payload);
+    await _sendPayload(payload, urgentStop: urgentStop);
   }
 
   Future<void> setHapticMode(HapticMode mode) =>
@@ -454,6 +519,7 @@ class GloveDataProvider extends ChangeNotifier {
       throw StateError('Stop the session and wait for pending commands.');
     }
     _legacyFirmware = enabled;
+    _measurementReady = false;
     _firmware = null;
     _confirmedMotorMask = null;
     _hapticMode = null;
@@ -465,16 +531,38 @@ class GloveDataProvider extends ChangeNotifier {
     if (!enabled) await _sendPayload('STATUS', quiet: true);
   }
 
-  Future<void> _sendPayload(String payload, {bool quiet = false}) {
+  Future<void> _sendPayload(
+    String payload, {
+    bool quiet = false,
+    bool urgentStop = false,
+  }) {
     if (!isConnected || _disposed) {
       return Future.error(StateError('Glove is disconnected.'));
     }
-    if (_pending != null) {
-      return Future.error(StateError('Wait for the current command.'));
+    if (_pending case final previous?) {
+      if (!urgentStop) {
+        return Future.error(StateError('Wait for the current command.'));
+      }
+      if (previous.payload == payload) return previous.completer.future;
+      previous.timer?.cancel();
+      _sensorWindow?.complete();
+      _sensorWindow = null;
+      if (previous.payload.startsWith('CAL:')) {
+        _firmware = null;
+        _invalidateMeasurement();
+      }
+      _confirmedMotorMask = null;
+      previous.completer.completeError(const CommandSuperseded());
     }
     final id = _nextCommandId;
     _nextCommandId = id == 65535 ? 1 : id + 1;
-    final pending = _PendingCommand(id, payload, quiet, _generation);
+    final pending = _PendingCommand(
+      id,
+      payload,
+      quiet,
+      _generation,
+      urgentStop,
+    );
     _pending = pending;
     if (!quiet) {
       _commandState = CommandState.sending;
@@ -503,7 +591,20 @@ class GloveDataProvider extends ChangeNotifier {
           Duration(milliseconds: 25 + pending.attempts * 13),
         );
       }
-      if (_lastPacket != null &&
+      if (_pending != pending || pending.generation != _generation) return;
+      if (pending.urgentStop && pending.attempts == 0) {
+        // Let bytes already handed to the native writer finish. Do not wait
+        // for the earlier ACK or run any of its retries.
+        final inProgress = _nativeWrite;
+        if (inProgress != null) {
+          try {
+            await inProgress;
+          } catch (_) {
+            // A failed write does not rule out a subsequent OFF. A timed-out
+            // write quarantines the transport, which the generation check sees.
+          }
+        }
+      } else if (_lastPacket != null &&
           _now().difference(_lastPacket!) > const Duration(milliseconds: 30)) {
         final window = Completer<void>();
         _sensorWindow = window;
@@ -520,7 +621,7 @@ class GloveDataProvider extends ChangeNotifier {
       final connection = _connection;
       if (connection == null) throw StateError('Glove is disconnected.');
       pending.attempts++;
-      await _writeCommand(connection, '<Q:${pending.id}:${pending.payload}>');
+      await _trackWrite(connection, '<Q:${pending.id}:${pending.payload}>');
       if (_pending != pending) return;
       pending.timer = Timer(const Duration(milliseconds: 850), () {
         if (_pending != pending) return;
@@ -538,6 +639,16 @@ class GloveDataProvider extends ChangeNotifier {
         _confirmedMotorMask = null;
         _failPending(error);
       }
+    }
+  }
+
+  Future<void> _trackWrite(GloveConnection connection, String command) async {
+    final write = _writeCommand(connection, command);
+    _nativeWrite = write;
+    try {
+      await write;
+    } finally {
+      if (identical(_nativeWrite, write)) _nativeWrite = null;
     }
   }
 
@@ -586,9 +697,10 @@ class GloveDataProvider extends ChangeNotifier {
           fields[1] == 'VIB' &&
           fields[3] == 'TIMEOUT' &&
           RegExp(r'^[1-5]$').hasMatch(fields[2])) {
-        final mask = _parseMask(fields[4]);
+        final mask = FirmwareStatus.parseMotorMask(fields[4]);
         if (mask == null) return;
         _confirmedMotorMask = mask;
+        _rearmMask |= 1 << (int.parse(fields[2]) - 1);
         _safetyMessage =
             'Finger ${fields[2]} stopped: vibration time limit reached. Turn it off and wait 2 seconds before rearming.';
       } else if (fields.length == 4 &&
@@ -605,7 +717,8 @@ class GloveDataProvider extends ChangeNotifier {
               ? CalibrationPhase.openReady
               : CalibrationPhase.ready;
           _calibrationError = null;
-        } else if (['UNSTABLE', 'INVALID_SPAN'].contains(fields[3])) {
+        } else if (fields[3] == 'UNSTABLE' ||
+            (fields[2] == 'CLOSED' && fields[3] == 'INVALID_SPAN')) {
           _calibrationPhase = fields[3] == 'INVALID_SPAN'
               ? CalibrationPhase.openReady
               : CalibrationPhase.failed;
@@ -615,9 +728,13 @@ class GloveDataProvider extends ChangeNotifier {
         } else {
           return;
         }
+        if (_pending?.payload == 'CAL:${fields[2]}') {
+          _pending!.captureFinished = true;
+        }
+        _invalidateMeasurement();
         _confirmedMotorMask = 0;
       } else if (fields.length == 3 && fields[1] == 'OUTPUT') {
-        final mask = _parseMask(fields[2]);
+        final mask = FirmwareStatus.parseMotorMask(fields[2]);
         if (mask == null) return;
         _confirmedMotorMask = mask;
       } else {
@@ -627,11 +744,15 @@ class GloveDataProvider extends ChangeNotifier {
       return;
     }
     if (fields.length < 4 || !['ACK', 'ERR'].contains(fields[0])) return;
-    final id = int.tryParse(fields[1]);
+    if (!RegExp(r'^[0-9]{1,5}$').hasMatch(fields[1])) return;
+    final id = int.tryParse(fields[1], radix: 10);
     if (id == null || id < 0 || id > 65535) return;
     final pending = _pending;
     final matches = pending != null && id == pending.id;
     if (!matches && id != 0) return;
+    // An ACK for a request still waiting on the native writer is not a
+    // response to this transaction.
+    if (matches && pending.attempts == 0) return;
     if (fields[0] == 'ERR') {
       if (fields.length != 4) return;
       if (id == 0 &&
@@ -641,7 +762,14 @@ class GloveDataProvider extends ChangeNotifier {
         _safetyMessage = 'Glove communication overflow. Output state is unknown; refresh status.';
         _notify();
       }
-      if (matches) _failPending(StateError('${fields[2]}: ${fields[3]}'));
+      if (matches) {
+        if (fields[2] == 'VIB' &&
+            fields[3] == 'REARM_REQUIRED' &&
+            RegExp(r'^VIB:[1-5],1$').hasMatch(pending.payload)) {
+          _rearmMask |= 1 << (int.parse(pending.payload[4]) - 1);
+        }
+        _failPending(StateError('${fields[2]}: ${fields[3]}'));
+      }
       return;
     }
     bool valid = false;
@@ -651,27 +779,38 @@ class GloveDataProvider extends ChangeNotifier {
             pending?.payload == 'CAL:STATUS')) {
       final status = FirmwareStatus.fromFields(fields.sublist(3));
       if (status == null) return;
+      final invalidMeasurement =
+          _legacyFirmware ||
+          !status.valid ||
+          status.phase != CalibrationPhase.idle;
+      if (status.motorMask != 0) _rearmMask &= ~status.motorMask;
       _firmware = status;
       _supportsProtocol = true;
       _hapticMode = status.mode;
       _calibrationPhase = status.phase;
       _confirmedMotorMask = status.motorMask;
       _legacyFirmware = false;
+      if (invalidMeasurement) _invalidateMeasurement();
       valid = true;
     } else if (matches &&
         fields[2] == 'VIB' &&
         fields.length == 6 &&
         pending.payload == 'VIB:${fields[3]},${fields[4]}') {
-      final mask = _parseMask(fields[5]);
+      final mask = FirmwareStatus.parseMotorMask(fields[5]);
       if (mask == null) return;
       _confirmedMotorMask = mask;
+      if (fields[4] == '0') {
+        _rearmMask &= fields[3] == 'ALL'
+            ? 0
+            : ~(1 << (int.parse(fields[3]) - 1));
+      }
       _hapticMode = HapticMode.manual;
       valid = true;
     } else if (matches &&
         fields[2] == 'MODE' &&
         fields.length == 5 &&
         pending.payload == 'MODE:${fields[3]}') {
-      final mask = _parseMask(fields[4]);
+      final mask = FirmwareStatus.parseMotorMask(fields[4]);
       if (mask == null) return;
       _hapticMode = fields[3] == 'AUTO'
           ? HapticMode.automatic
@@ -683,9 +822,11 @@ class GloveDataProvider extends ChangeNotifier {
           fields[4] == 'STARTED' &&
           pending.payload == 'CAL:${fields[3]}' &&
           ['OPEN', 'CLOSED'].contains(fields[3])) {
-        _calibrationPhase = fields[3] == 'OPEN'
-            ? CalibrationPhase.open
-            : CalibrationPhase.closed;
+        if (!pending.captureFinished) {
+          _calibrationPhase = fields[3] == 'OPEN'
+              ? CalibrationPhase.open
+              : CalibrationPhase.closed;
+        }
         valid = true;
       } else if (fields.length == 4 &&
           ((fields[3] == 'SAVED' && pending.payload == 'CAL:SAVE') ||
@@ -696,7 +837,10 @@ class GloveDataProvider extends ChangeNotifier {
         if (fields[3] != 'CANCELLED') _firmware = null;
         valid = true;
       }
-      if (valid) _confirmedMotorMask = 0;
+      if (valid) {
+        _invalidateMeasurement();
+        _confirmedMotorMask = 0;
+      }
     }
     if (!valid) return;
     if (matches) {
@@ -709,12 +853,6 @@ class GloveDataProvider extends ChangeNotifier {
       pending.completer.complete();
     }
     _notify();
-  }
-
-  static int? _parseMask(String text) {
-    if (!RegExp(r'^\d{1,2}$').hasMatch(text)) return null;
-    final value = int.parse(text);
-    return value <= 31 ? value : null;
   }
 
   Future<void> vibrateAll(bool enabled) =>
@@ -735,11 +873,19 @@ class GloveDataProvider extends ChangeNotifier {
 }
 
 class _PendingCommand {
-  _PendingCommand(this.id, this.payload, this.quiet, this.generation);
+  _PendingCommand(
+    this.id,
+    this.payload,
+    this.quiet,
+    this.generation,
+    this.urgentStop,
+  );
   final int id, generation;
   final String payload;
   final bool quiet;
+  final bool urgentStop;
   final completer = Completer<void>();
+  bool captureFinished = false;
   Timer? timer;
   int attempts = 0;
 }

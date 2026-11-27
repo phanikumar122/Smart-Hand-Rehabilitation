@@ -208,7 +208,7 @@ class SessionScreen extends StatelessWidget {
                       label: context.strings.averageBend,
                       value: data == null
                           ? '--'
-                          : '${(data.thumb + data.index + data.middle + data.ring + data.pinky) ~/ 5}°',
+                          : '${(data.thumb + data.index + data.middle + data.ring + data.pinky) ~/ 5}/90',
                       icon: Icons.gesture_rounded,
                       tone: colors.tertiary,
                     ),

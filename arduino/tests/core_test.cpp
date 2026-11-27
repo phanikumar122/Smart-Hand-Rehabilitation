@@ -182,6 +182,33 @@ int main() {
   statusReplay.tick(1000);
   command(statusReplay, "<Q:2:STATUS>", 1100);
   assert(lines.back() == "ACK,2,STATUS,3.0,MANUAL,0,IDLE,0,0");
+  GloveCore recommit(output);
+  recommit.load(validCalibration());
+  const uint16_t newOpen[6] = {300, 500, 300, 300, 300, 100};
+  const uint16_t newClosed[6] = {500, 300, 500, 500, 500, 100};
+  command(recommit, "<CAL:OPEN>", 0);
+  for (int i = 1; i <= 64; ++i)
+    recommit.sample(newOpen, i * 20);
+  command(recommit, "<CAL:CLOSED>", 1300);
+  for (int i = 66; i <= 129; ++i)
+    recommit.sample(newClosed, i * 20);
+  command(recommit, "<Q:1:CAL:SAVE>", 2600);
+  for (int i = 131; i <= 140; ++i)
+    recommit.sample(newOpen, i * 20);
+  assert(recommit.saveRequested() && recommit.outputMask() == 0);
+  recommit.finishSave(true);
+  recommit.tick(2805);
+  assert(!recommit.telemetryReady() && recommit.outputMask() == 0);
+  recommit.sample(newOpen, 2820);
+  assert(recommit.telemetryReady() && recommit.outputMask() == 0);
+  command(recommit, "<Q:2:VIB:ALL,1>", 2840);
+  assert(lines.back() == "ACK,2,VIB,ALL,1,31");
+  command(recommit, "<Q:3:CAL:RESET>", 2850);
+  command(recommit, "<Q:4:VIB:ALL,0>", 2860);
+  assert(lines.back() == "ACK,4,VIB,ALL,0,0");
+  recommit.finishSave(true);
+  command(recommit, "<Q:3:CAL:RESET>", 2870);
+  assert(lines.back() == "ACK,3,CAL,RESET" && !recommit.saveRequested());
   std::cout << "Firmware core: parser, calibration, filtering, modes, safety, "
                "CSV and EEPROM passed\n";
 }

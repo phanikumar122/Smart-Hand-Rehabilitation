@@ -164,14 +164,24 @@ On Android 11 and earlier, Bluetooth discovery may also require Location permiss
 
 ## 8. Release preparation
 
-The current Android configuration signs release builds with the debug key for local testing. Do not distribute that build publicly.
+Use debug builds for local testing. Release builds fail if the private signing configuration is missing; they never fall back to the debug key.
 
 Before publishing:
 
 1. Choose a permanent application ID.
 2. Create a private release keystore.
-3. Store signing credentials outside Git.
-4. Configure release signing in Gradle.
+3. Keep the keystore outside the repository. Create a private, ignored `android/key.properties` file with these keys:
+
+   ```properties
+   storeFile=C:/private-signing/smart-glove-upload.jks
+   storePassword=YOUR_KEYSTORE_PASSWORD
+   keyAlias=YOUR_UPLOAD_KEY_ALIAS
+   keyPassword=YOUR_KEY_PASSWORD
+   ```
+
+   Use your keystore's absolute path (forward slashes work on Windows), or a path relative to the Android directory. Do not use the example credentials. Keep the existing release key for updates to an already published package.
+
+4. Keep signing credentials out of Git, including any local script that creates this file in CI.
 5. Update the application version in `pubspec.yaml`.
 6. Build an app bundle:
 

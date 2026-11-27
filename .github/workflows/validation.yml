@@ -1,0 +1,48 @@
+name: Validation
+
+on: [push, pull_request]
+
+permissions:
+  contents: read
+
+jobs:
+  app:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.50.1'
+          channel: stable
+          cache: true
+      - run: flutter pub get --enforce-lockfile
+      - run: dart format --output=none --set-exit-if-changed lib test
+      - run: dart analyze --fatal-infos lib test
+      - run: flutter test --no-pub
+      - run: flutter build apk --debug --no-pub
+      - run: git diff --exit-code -- lib/l10n/generated
+
+  firmware:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 arduino/tests/run_tests.py
+      - uses: arduino/setup-arduino-cli@v2
+        with:
+          version: '1.6.0'
+      - run: sudo apt-get update && sudo apt-get install -y simavr
+      - run: |
+          arduino-cli core update-index
+          arduino-cli core install arduino:avr@1.8.6
+          for cpu in atmega328 atmega328old; do
+            arduino-cli compile --fqbn "arduino:avr:nano:cpu=$cpu" --warnings all arduino/smart_glove
+          done
+          compiler_dir="$(arduino-cli compile --fqbn arduino:avr:nano:cpu=atmega328 --show-properties=expanded arduino/smart_glove | sed -n 's/^compiler.path=//p')"
+          test -n "$compiler_dir"
+          python3 arduino/tests/run_avr_ack_test.py "${compiler_dir%/}/avr-g++"

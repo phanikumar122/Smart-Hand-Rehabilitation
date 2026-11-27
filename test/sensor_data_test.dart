@@ -32,4 +32,9 @@ void main() {
   test('accepts CRLF and real zero readings', () {
     expect(SensorData.fromCsv('0,0,0,0,0,0\r\n')?.thumb, 0);
   });
+  test('rejects signed and hexadecimal telemetry fields', () {
+    for (final frame in ['0x10,2,3,4,5,6', '1,2,3,4,5,0x200', '+1,2,3,4,5,6']) {
+      expect(SensorData.fromCsv(frame), isNull, reason: frame);
+    }
+  });
 }

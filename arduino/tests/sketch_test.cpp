@@ -115,6 +115,20 @@ int main() {
   EEPROM.data.fill(0xFF);
   rebootCore();
   assert(!glove.calibration().valid);
+  // Reproduce a saturated AUTO request while old calibration is still active
+  // during reset. No GPIO may come back on when the journal commits.
+  glove.load(fixture());
+  bluetooth.inject("<Q:6:MODE:AUTO>");
+  for (auto pin : flexPins)
+    analogInputs[pin] = 300;
+  runFor(600);
+  assert(physicalMask == 31);
+  bluetooth.inject("<Q:7:CAL:RESET>");
+  for (unsigned ms = 0; ms < 250; ++ms) {
+    runFor(1);
+    assert(physicalMask == 0);
+  }
+  assert(!glove.calibration().valid);
   std::cout << "Sketch integration: GPIO, scheduling, wire limits, EEPROM "
                "journal and display failure passed\n";
 }

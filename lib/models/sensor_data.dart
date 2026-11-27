@@ -6,6 +6,7 @@ class SensorData {
   final int pinky;
   final int grip;
   final DateTime timestamp;
+  static final _decimal = RegExp(r'^[0-9]+$');
 
   SensorData({
     required this.thumb,
@@ -18,29 +19,24 @@ class SensorData {
   }) : timestamp = timestamp ?? DateTime.now();
 
   static SensorData? fromCsv(String csv, {DateTime? timestamp}) {
-    try {
-      final parts = csv.split(',');
-      if (parts.length == 6) {
-        final values = parts.map((part) => int.tryParse(part.trim())).toList();
-        if (values.any((value) => value == null) ||
-            values.take(5).any((value) => value! < 0 || value > 90) ||
-            values[5]! < 0 ||
-            values[5]! > 1023) {
-          return null;
-        }
-        return SensorData(
-          timestamp: timestamp,
-          thumb: int.parse(parts[0].trim()),
-          index: int.parse(parts[1].trim()),
-          middle: int.parse(parts[2].trim()),
-          ring: int.parse(parts[3].trim()),
-          pinky: int.parse(parts[4].trim()),
-          grip: int.parse(parts[5].trim()),
-        );
-      }
-    } catch (e) {
-      // Ignored
+    final parts = csv.split(',');
+    if (parts.length != 6) return null;
+    final values = <int>[];
+    for (var i = 0; i < parts.length; i++) {
+      final text = parts[i].trim();
+      if (!_decimal.hasMatch(text)) return null;
+      final value = int.tryParse(text, radix: 10);
+      if (value == null || value > (i == 5 ? 1023 : 90)) return null;
+      values.add(value);
     }
-    return null;
+    return SensorData(
+      timestamp: timestamp,
+      thumb: values[0],
+      index: values[1],
+      middle: values[2],
+      ring: values[3],
+      pinky: values[4],
+      grip: values[5],
+    );
   }
 }

@@ -24,10 +24,13 @@ Use a physical Android device and a logic analyzer/oscilloscope on D2/D3 and dri
 | Repeated ON/mode/retry | Continuous motor ON limit cannot be extended by repeated commands |
 | Timeout/rearm | GPIO turns off at limit plus measured loop latency; ON cannot resume until release/cooldown |
 | Calibration phases | All motors OFF during capture, between captures, failure and saving |
+| Calibration commit | With the prior calibration requesting AUTO output, confirm no stale GPIO pulse at save/reset readback; after save, the first new sample alone determines requests |
+| All off priority | With a STATUS/ON response delayed or lost, confirm All off cancels old app retries, reports OFF only after its own ACK, and remains in MANUAL. Check the per-finger OFF control after a trip. |
 | Link loss/app background/kill | Motor pulses remain bounded; MANUAL lease expires; app invalidates pending/confirmed state as appropriate |
 | Split/malformed/burst RX | Strict errors/recovery without resets, starvation or unexpected motor activation |
 | Full load | Sampling/transmission jitter and command retries remain within accepted limits with five motors/OLED active |
 | Freshness | ACK/status-only traffic cannot keep stale sensor values visible or start a session |
+| Recording interruption | Interrupt telemetry or invalidate calibration during a recording; check that the saved duration ends at the last accepted reading and recording does not auto-resume |
 | Reconnect | Pending ON commands are not replayed; authoritative mode/calibration/output status replaces guesses |
 
 Start with engineering targets and record actual distributions, not just one successful interaction. Suggested initial bench targets: approximately 20 ms sampling with no skipped periods in steady nominal operation; sustained telemetry near 10 Hz outside control bursts; command ACK 95th percentile under 250 ms and no unexplained timeout in 1000 paced command transactions. These are qualification targets, not measured guarantees. Log max sample gap, lost/skipped frames, retry count, median/95th/max command latency, resets and temperature. If the existing SoftwareSerial link cannot meet the chosen limits, revise the UART/controller architecture rather than calling it deterministic hard real-time.

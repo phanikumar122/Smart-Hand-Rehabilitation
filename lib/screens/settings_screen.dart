@@ -232,7 +232,7 @@ class SettingsScreen extends StatelessWidget {
                       ],
                     ),
                   );
-                  if (clear != true) return;
+                  if (clear != true || !context.mounted) return;
                   try {
                     await StorageService().clearSessions();
                     if (!context.mounted) return;

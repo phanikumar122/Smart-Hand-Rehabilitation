@@ -257,6 +257,18 @@ abstract class AppLocalizations {
   /// **'Could not clear history. Please try again.'**
   String get historyClearFailed;
 
+  /// No description provided for @historyLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load session history. Please try again.'**
+  String get historyLoadFailed;
+
+  /// No description provided for @retryHistory.
+  ///
+  /// In en, this message translates to:
+  /// **'Reload history'**
+  String get retryHistory;
+
   /// No description provided for @today.
   ///
   /// In en, this message translates to:
@@ -515,11 +527,11 @@ abstract class AppLocalizations {
   /// **'Sensor reading'**
   String get sensorReading;
 
-  /// No description provided for @degrees.
+  /// No description provided for @movementScale.
   ///
   /// In en, this message translates to:
-  /// **'Degrees'**
-  String get degrees;
+  /// **'Normalized movement (0–90), not joint angle'**
+  String get movementScale;
 
   /// No description provided for @clearHistory.
   ///
@@ -839,6 +851,12 @@ abstract class AppLocalizations {
   /// **'All off'**
   String get allOff;
 
+  /// No description provided for @releaseMotor.
+  ///
+  /// In en, this message translates to:
+  /// **'Send OFF to {finger}'**
+  String releaseMotor(String finger);
+
   /// No description provided for @unconfirmed.
   ///
   /// In en, this message translates to:
@@ -952,6 +970,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Session discarded: no sensor readings were recorded.'**
   String get sessionDiscarded;
+
+  /// No description provided for @sessionInterrupted.
+  ///
+  /// In en, this message translates to:
+  /// **'Recording interrupted. Saved {count} readings.'**
+  String sessionInterrupted(int count);
 
   /// Session saved ({count} readings).
   ///

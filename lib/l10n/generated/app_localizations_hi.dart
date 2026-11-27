@@ -92,6 +92,13 @@ class AppLocalizationsHi extends AppLocalizations {
   String get historyClearFailed => 'इतिहास नहीं मिटा सके। फिर प्रयास करें।';
 
   @override
+  String get historyLoadFailed =>
+      'अभ्यास का इतिहास लोड नहीं हो सका। फिर प्रयास करें।';
+
+  @override
+  String get retryHistory => 'इतिहास फिर से लोड करें';
+
+  @override
   String get today => 'आज';
 
   @override
@@ -226,7 +233,7 @@ class AppLocalizationsHi extends AppLocalizations {
   String get sensorReading => 'उपकरण का माप';
 
   @override
-  String get degrees => 'अंश';
+  String get movementScale => 'मानकीकृत गति (0–90), जोड़ का कोण नहीं';
 
   @override
   String get clearHistory => 'इतिहास मिटाएँ';
@@ -408,6 +415,11 @@ class AppLocalizationsHi extends AppLocalizations {
   String get allOff => 'सभी बंद करें';
 
   @override
+  String releaseMotor(String finger) {
+    return '$finger का कंपन बंद करने का आदेश भेजें';
+  }
+
+  @override
   String get unconfirmed => 'पुष्टि नहीं';
 
   @override
@@ -473,6 +485,11 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get sessionDiscarded => 'माप दर्ज नहीं हुए; अभ्यास सुरक्षित नहीं हुआ।';
+
+  @override
+  String sessionInterrupted(int count) {
+    return 'रिकॉर्डिंग बाधित हुई। $count माप सहेजे गए।';
+  }
 
   @override
   String sessionSaved(int count) {

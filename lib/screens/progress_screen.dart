@@ -133,7 +133,7 @@ class _LiveTrendsState extends State<_LiveTrends> {
         const SizedBox(height: 14),
         _TrendCard(
           title: context.strings.averageBend,
-          caption: context.strings.degrees,
+          caption: context.strings.movementScale,
           history: filtered,
           accessor: (data) =>
               (data.thumb + data.index + data.middle + data.ring + data.pinky) /

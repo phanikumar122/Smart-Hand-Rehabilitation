@@ -78,6 +78,12 @@ String localizedMessage(AppLocalizations strings, Object value) {
   if (exact != null) return exact;
   final saved = RegExp(r'^Session saved \((\d+) readings\)\.$').firstMatch(raw);
   if (saved != null) return strings.sessionSaved(int.parse(saved[1]!));
+  final interrupted = RegExp(
+    r'^Recording interrupted\. Saved (\d+) readings\.$',
+  ).firstMatch(raw);
+  if (interrupted != null) {
+    return strings.sessionInterrupted(int.parse(interrupted[1]!));
+  }
   final limit = RegExp(r'^Finger ([1-5]) stopped:').firstMatch(raw);
   if (limit != null) {
     return strings.fingerTimedOut(strings.fingerName(int.parse(limit[1]!) - 1));

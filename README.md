@@ -13,7 +13,7 @@ Smart Glove App combines an Arduino Nano sensor glove and an Android Flutter app
 - Unchanged six-integer sensor frames at nominal 10 Hz; grip remains filtered ADC `0..1023`.
 - Incremental 128×64 OLED text without a 1024-byte framebuffer; movement and output state displayed independently.
 - App requested/confirmed output separation, retries/timeouts, guided calibration and firmware status.
-- Existing live-signal watchdog, measured history, recording metrics, local session storage, reconnection and accessible light/dark UI retained.
+- Recording stops if telemetry or calibration becomes unreliable; any saved partial session ends at the last accepted reading. Session history is kept on the device and excluded from Android backup and transfer.
 
 Finger values `0..90` are normalized sensor movement estimates, not independently validated joint angles. FSR ADC is not pressure/force in clinical units.
 
@@ -54,6 +54,8 @@ On Windows with Ubuntu WSL and g++ installed, from this repository:
 wsl -d Ubuntu -- python3 arduino/tests/run_tests.py
 ```
 
+The repository's Validation workflow runs app checks and builds, both Nano builds, host tests, and a simulated AVR UART acknowledgement check on pushes and pull requests. Physical tests are still required.
+
 APK output is `build/app/outputs/flutter-apk/app-debug.apk` (ignored by Git). Install/run:
 
 ```powershell
@@ -80,4 +82,4 @@ Old app/new firmware: live sensor parsing and original VIB bytes continue workin
 
 SoftwareSerial is not full duplex. Firmware is cooperatively scheduled soft real-time; sensor transmission can be skipped for control traffic. Real timing, analog noise, supply behavior, motor temperatures, stack headroom and radio loss need assembled-glove measurements. AUTO haptics run locally; the manual lease detects app inactivity rather than the physical Bluetooth STATE pin. An ACK confirms firmware output state, not independently measured motor motion.
 
-Release Android builds currently use debug signing. Configure a private keystore before public distribution. Never commit keys, local SDK paths, generated files, APKs or IDE state. No open-source license has been added; normal copyright restrictions apply.
+Release Android builds require a private keystore configured as described in the setup guide; use a debug APK for local development. Never commit keys, local SDK paths, generated files, APKs or IDE state. No open-source license has been added; normal copyright restrictions apply.

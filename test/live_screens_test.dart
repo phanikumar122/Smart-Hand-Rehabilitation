@@ -97,7 +97,7 @@ void main() {
       await tester.pumpWidget(app(screen));
       await tester.pump();
       expect(find.textContaining('No signal'), findsWidgets);
-      expect(find.text('0°'), findsNothing);
+      expect(find.text('0/90'), findsNothing);
       expect(find.text('Grip: 0'), findsNothing);
       expect(tester.takeException(), isNull);
     }
@@ -128,16 +128,16 @@ void main() {
       await tester.pumpAndSettle();
       final selectedReading = find.byKey(const ValueKey('selected-bend'));
       expect(selectedReading, findsOneWidget);
-      expect(tester.widget<Text>(selectedReading).data, '30°');
+      expect(tester.widget<Text>(selectedReading).data, '30/90');
       await tester.tap(find.widgetWithText(ChoiceChip, 'Thumb'));
       await tester.pumpAndSettle();
-      expect(tester.widget<Text>(selectedReading).data, '10°');
+      expect(tester.widget<Text>(selectedReading).data, '10/90');
       receive('65,20,30,40,50,600\n');
       await tester.pumpAndSettle();
-      expect(tester.widget<Text>(selectedReading).data, '65°');
+      expect(tester.widget<Text>(selectedReading).data, '65/90');
       await tester.tap(find.widgetWithText(ChoiceChip, 'All'));
       await tester.pumpAndSettle();
-      expect(tester.widget<Text>(selectedReading).data, '41°');
+      expect(tester.widget<Text>(selectedReading).data, '41/90');
       await tester.pumpWidget(const SizedBox());
     },
   );
@@ -157,7 +157,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(
       tester.widget<Text>(find.byKey(const ValueKey('selected-bend'))).data,
-      '10°',
+      '10/90',
     );
     await tester.pumpWidget(const SizedBox());
   });
@@ -205,7 +205,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(
         tester.widget<Text>(find.byKey(const ValueKey('selected-bend'))).data,
-        '40°',
+        '40/90',
       );
       now = now.add(const Duration(seconds: 2));
       await tester.runAsync(
@@ -365,6 +365,36 @@ void main() {
       tester.view.reset();
     },
   );
+  testWidgets('all off stays enabled while a command is pending', (
+    tester,
+  ) async {
+    await tester.runAsync(() => provider.connectToDevice(device));
+    await tester.pumpWidget(app(const Scaffold(body: HapticControlPanel())));
+    await tester.tap(find.text('All on'));
+    await tester.pump();
+    final off = find.widgetWithText(OutlinedButton, 'All off');
+    expect(tester.widget<OutlinedButton>(off).onPressed, isNotNull);
+    await tester.tap(off);
+    await tester.pump();
+    expect(ascii.decode(link.writes.last), '<Q:3:VIB:ALL,0>');
+    receive('ACK,3,VIB,ALL,0,0\n');
+    await tester.pumpAndSettle();
+    expect(provider.confirmedMotorMask, 0);
+  });
+
+  testWidgets('timed-out finger has an explicit OFF action', (tester) async {
+    await tester.runAsync(() => provider.connectToDevice(device));
+    await tester.pumpWidget(app(const Scaffold(body: HapticControlPanel())));
+    receive('EVT,VIB,1,TIMEOUT,0\n');
+    await tester.pump();
+    await tester.tap(find.byTooltip('Send OFF to Thumb'));
+    await tester.pump();
+    expect(ascii.decode(link.writes.last), '<Q:2:VIB:1,0>');
+    receive('ACK,2,VIB,1,0,0\n');
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('Send OFF to Thumb'), findsNothing);
+  });
+
   testWidgets(
     'settings explains calibration and prevents disconnected capture',
     (tester) async {

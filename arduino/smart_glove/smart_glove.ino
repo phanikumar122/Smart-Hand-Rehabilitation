@@ -147,7 +147,8 @@ void sampleSensors(uint32_t now) {
 }
 
 void sendSensorFrame() {
-  if (txCount || pendingTimeouts || writing || glove.receivingCommand())
+  if (txCount || pendingTimeouts || writing || !glove.telemetryReady() ||
+      glove.receivingCommand())
     return;
   char line[32];
   glove.sensorCsv(line, sizeof(line));

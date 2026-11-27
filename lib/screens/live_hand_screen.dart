@@ -115,7 +115,7 @@ class _LiveHandScreenState extends State<LiveHandScreen> {
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          bend == null ? '--' : '$bend°',
+                          bend == null ? '--' : '$bend/90',
                           key: const ValueKey('selected-bend'),
                           style: Theme.of(context).textTheme.headlineLarge
                               ?.copyWith(

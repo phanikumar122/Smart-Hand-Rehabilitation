@@ -92,6 +92,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get historyClearFailed => 'Could not clear history. Please try again.';
 
   @override
+  String get historyLoadFailed =>
+      'Could not load session history. Please try again.';
+
+  @override
+  String get retryHistory => 'Reload history';
+
+  @override
   String get today => 'Today';
 
   @override
@@ -226,7 +233,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sensorReading => 'Sensor reading';
 
   @override
-  String get degrees => 'Degrees';
+  String get movementScale => 'Normalized movement (0–90), not joint angle';
 
   @override
   String get clearHistory => 'Clear History';
@@ -407,6 +414,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get allOff => 'All off';
 
   @override
+  String releaseMotor(String finger) {
+    return 'Send OFF to $finger';
+  }
+
+  @override
   String get unconfirmed => 'Unconfirmed';
 
   @override
@@ -474,6 +486,11 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get sessionDiscarded =>
       'Session discarded: no sensor readings were recorded.';
+
+  @override
+  String sessionInterrupted(int count) {
+    return 'Recording interrupted. Saved $count readings.';
+  }
 
   @override
   String sessionSaved(int count) {

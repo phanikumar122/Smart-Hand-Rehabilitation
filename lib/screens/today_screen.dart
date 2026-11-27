@@ -92,7 +92,7 @@ class TodayScreen extends StatelessWidget {
                 final metrics = [
                   MetricTile(
                     label: context.strings.averageBend,
-                    value: average == null ? '--' : '$average°',
+                    value: average == null ? '--' : '$average/90',
                     icon: Icons.gesture_rounded,
                   ),
                   MetricTile(

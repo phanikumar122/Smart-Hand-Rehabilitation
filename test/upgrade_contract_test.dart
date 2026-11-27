@@ -8,6 +8,7 @@ import 'package:fake_async/fake_async.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:smart_glove_app/models/firmware_status.dart';
 import 'package:smart_glove_app/providers/glove_data_provider.dart';
+import 'package:smart_glove_app/services/storage_service.dart';
 
 import 'support/serial_link.dart';
 
@@ -145,6 +146,8 @@ void main() {
     await save;
     expect(provider.canStartSession, isFalse); // Require authoritative status.
     receive('ACK,0,STATUS,3.0,AUTO,1,IDLE,1,0\n');
+    expect(provider.canStartSession, isFalse);
+    receive('1,2,3,4,5,600\n');
     expect(provider.canStartSession, isTrue);
   });
 
@@ -225,6 +228,8 @@ void main() {
       transport.bytes.add(Uint8List.fromList(ascii.encode('1,2,3,4,5,600\n')));
       p.setLegacyFirmwareMode(true);
       time.flushMicrotasks();
+      expect(p.canStartSession, isFalse);
+      transport.bytes.add(Uint8List.fromList(ascii.encode('1,2,3,4,5,600\n')));
       expect(p.canStartSession, isTrue);
       p.vibrateFinger(3, true);
       time.flushMicrotasks();
@@ -288,6 +293,100 @@ void main() {
         p.dispose();
         time.flushMicrotasks();
       });
+    },
+  );
+  test('late capture ACK cannot rewind a completed capture', () async {
+    final open = provider.calibrateOpen();
+    receive('EVT,CAL,OPEN,DONE\nACK,2,CAL,OPEN,STARTED\n');
+    await open;
+    expect(provider.calibrationPhase, CalibrationPhase.openReady);
+    final closed = provider.calibrateClosed();
+    receive('EVT,CAL,CLOSED,UNSTABLE\nACK,3,CAL,CLOSED,STARTED\n');
+    await closed;
+    expect(provider.calibrationPhase, CalibrationPhase.failed);
+    expect(provider.calibrationError, contains('still'));
+  });
+
+  test(
+    'all off supersedes an unconfirmed ON and ignores its late reply',
+    () async {
+      final on = provider.vibrateFinger(3, true);
+      final replaced = expectLater(on, throwsA(isA<CommandSuperseded>()));
+      final off = provider.vibrateAll(false);
+      await replaced;
+      await Future<void>.delayed(Duration.zero);
+      expect(link.writes.map(ascii.decode), [
+        '<Q:1:STATUS>',
+        '<Q:2:VIB:3,1>',
+        '<Q:3:VIB:ALL,0>',
+      ]);
+      receive('ACK,2,VIB,3,1,4\n');
+      expect(provider.confirmedMotorMask, isNull);
+      receive('ACK,3,VIB,ALL,0,0\n');
+      await off;
+      expect(provider.confirmedMotorMask, 0);
+      expect(provider.commandState, CommandState.confirmed);
+    },
+  );
+
+  test('all off preempts an initial status probe with no response', () async {
+    await provider.disconnect();
+    final stalled = SerialLink(autoStatus: false);
+    final p = GloveDataProvider(connector: (_) async => stalled);
+    addTearDown(p.dispose);
+    final connecting = p.connectToDevice(
+      const BtcDevice(address: '00:11:22:33:44:55'),
+    );
+    await Future<void>.delayed(Duration.zero);
+    expect(p.commandPending, isTrue);
+    final off = p.vibrateAll(false);
+    expect(await connecting, isTrue);
+    expect(stalled.writes.map(ascii.decode), [
+      '<Q:1:STATUS>',
+      '<Q:2:VIB:ALL,0>',
+    ]);
+    stalled.bytes.add(Uint8List.fromList(ascii.encode('ACK,2,VIB,ALL,0,0\n')));
+    await off;
+    expect(p.confirmedMotorMask, 0);
+  });
+
+  test('all off shares one request when tapped repeatedly', () async {
+    final first = provider.vibrateAll(false);
+    final second = provider.vibrateAll(false);
+    final completed = Future.wait([first, second]);
+    await Future<void>.delayed(Duration.zero);
+    expect(link.writes.map(ascii.decode), ['<Q:1:STATUS>', '<Q:2:VIB:ALL,0>']);
+    receive('ACK,2,VIB,ALL,0,0\n');
+    await completed;
+  });
+
+  test('nondecimal request IDs and motor masks are not accepted', () async {
+    final command = provider.vibrateAll(true);
+    receive('ACK,0x2,VIB,ALL,1,31\nACK,2,VIB,ALL,1,0x1f\n');
+    receive('ACK,0,STATUS,3.0,MANUAL,1,IDLE,1,0x1f\n');
+    expect(provider.commandPending, isTrue);
+    expect(provider.confirmedMotorMask, 0);
+    receive('ACK,2,VIB,ALL,1,31\n');
+    await command;
+  });
+
+  test(
+    'invalid calibration stops recording before subsequent frames',
+    () async {
+      receive('1,2,3,4,5,600\n');
+      expect(provider.startSession(), isTrue);
+      receive('1,2,3,4,5,601\nACK,0,STATUS,3.0,AUTO,0,IDLE,0,0\n');
+      receive('0,0,0,0,0,999\n');
+      expect(provider.isSessionActive, isFalse);
+      await Future<void>.delayed(Duration.zero);
+      final saved = (await StorageService().getSessions()).single;
+      expect(saved.readingCount, 1);
+      expect(saved.maxGrip, 601);
+      expect(provider.sessionMessage, contains('interrupted'));
+      receive('ACK,0,STATUS,3.0,AUTO,1,IDLE,1,0\n');
+      expect(provider.canStartSession, isFalse);
+      receive('1,2,3,4,5,602\n');
+      expect(provider.canStartSession, isTrue);
     },
   );
 }

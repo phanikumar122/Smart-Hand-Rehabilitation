@@ -9,7 +9,7 @@ thumb,index,middle,ring,pinky,grip\n
 12,28,40,33,18,642\n
 ```
 
-Exactly six decimal integers. Fingers are normalized movement values `0..90` using independent two-point calibration, not certified anatomical joint angles. Grip is **filtered ADC**, `0..1023`; this preserves the meaning of earlier stored maximum-grip values. Baseline-corrected grip delta is used internally for haptics and displayed on the OLED. Grip is not a force measurement in newtons.
+Exactly six unsigned decimal integers. Fingers are normalized movement values `0..90` using independent two-point calibration, not certified anatomical joint angles. Grip is **filtered ADC**, `0..1023`; this preserves the meaning of earlier stored maximum-grip values. Baseline-corrected grip delta is used internally for haptics and displayed on the OLED. Grip is not a force measurement in newtons.
 
 Nominal transmission is 10 Hz. Control replies have priority: firmware skips telemetry rather than accumulating stale frames. Sampling continues during calibration, saving, and transmission. Invalid calibration produces zero finger movement values and disables automatic haptics; app recording requires valid calibration and an idle calibration workflow.
 
@@ -32,7 +32,7 @@ Case-sensitive, no spaces or newline inside commands. Firmware accepts at most 3
 | `CAL:CANCEL` | Discard candidate and return to previous active calibration; not accepted during EEPROM save |
 | `STATUS` / `CAL:STATUS` / `PING` | Report firmware state and refresh manual-control lease |
 
-Finger order: `1` thumb, `2` index, `3` middle, `4` ring, `5` pinky. ON commands are rejected while any targeted motor needs safety rearming. All commands are rejected as busy while saving, except a retry of the same sequenced save.
+Finger order: `1` thumb, `2` index, `3` middle, `4` ring, `5` pinky. ON commands are rejected while any targeted motor needs safety rearming. `VIB:ALL,0` works in all calibration phases: it clears requests and selects MANUAL. During a save it does not displace the in-progress save from the replay cache; other commands remain busy except retries of the same sequenced save.
 
 Legacy syntax remains accepted:
 
@@ -52,7 +52,7 @@ New app syntax adds a request ID:
 
 IDs are decimal `1..65535`, at most five digits. App uses increasing IDs, retaining its counter across reconnects. ID `0` in responses means unsequenced/legacy or framing/link errors. Only **one sequenced command may be outstanding**. Firmware caches the most recent ID, payload and response. Retrying that ID/payload does not restart a motor timer, calibration, or EEPROM write. Reusing that ID for a different payload returns `ID_REUSE`. This is not a multi-command replay cache or exactly-once delivery across power loss. Repeated STATUS reports current state; repeated motor/mode ACKs update their effective output mask.
 
-The app makes up to three attempts with the same ID. Each response timer is 850 ms after write/flush. Retries add 38/51 ms offsets and may wait up to 130 ms for a receive window after the next complete sensor frame. Expected total failure indication is approximately 2.6–3.1 seconds, plus native transport write/flush time (bounded to one second per attempt). A stalled native write/flush fails the command and closes the connection to prevent later queued writes from being reused. A timeout means **unknown delivery/output**, not proof that a command was rejected. Disconnect cancels pending commands; commands are not replayed automatically onto a reconnected glove.
+The app makes up to three attempts with the same ID. Each response timer is 850 ms after write/flush. Retries add 38/51 ms offsets and may wait up to 130 ms for a receive window after the next complete sensor frame. Expected total failure indication is approximately 2.6–3.1 seconds, plus native transport write/flush time (bounded to one second per attempt). A stalled native write/flush fails the command and closes the connection to prevent later queued writes from being reused. A timeout means **unknown delivery/output**, not proof that a command was rejected. Disconnect cancels pending commands; commands are not replayed automatically onto a reconnected glove. All off is the exception to normal pending-command scheduling: it supersedes the app's previous ACK wait and retries, sends after any already-started native write, and requires its own ACK. It cannot undo bytes the phone already sent or replace a physical power cutoff.
 
 ## Responses
 
@@ -86,7 +86,7 @@ EVT,CAL,OPEN|CLOSED,DONE|UNSTABLE
 EVT,CAL,CLOSED,INVALID_SPAN
 ```
 
-Capture ACK confirms **start**, not completion. EVT reports completion/error; periodic STATUS recovers state if an event is missed. Save/reset ACK confirms EEPROM readback. Motor ACK reports the effective output after applying the request. Subsequent timeout/output events and STATUS supersede earlier ACK state. Automatic output events are coalesced at the telemetry interval; timeout events are queued by finger with the latest output mask.
+Capture ACK confirms **start**, not completion. EVT reports completion/error; the app does not rewind a completed phase if a retried start ACK arrives later. Periodic STATUS recovers state if an event is missed. Save/reset ACK confirms EEPROM readback; AUTO remains inhibited and telemetry is not sent until a new sample has been processed with the committed calibration. Motor ACK reports the effective output after applying the request. Subsequent timeout/output events and STATUS supersede earlier ACK state. Automatic output events are coalesced at the telemetry interval; timeout events are queued by finger with the latest output mask.
 
 ## Haptic state and safety
 

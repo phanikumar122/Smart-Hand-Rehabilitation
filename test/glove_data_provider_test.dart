@@ -84,6 +84,7 @@ void main() {
   });
   test('sends exact firmware commands and awaits output flush', () async {
     Future<void> confirm(Future<void> command, String response) async {
+      await Future<void>.delayed(Duration.zero);
       receive('$response\n');
       await command;
     }
@@ -118,7 +119,7 @@ void main() {
     expect(sessions.single.averageMovement, 15);
     expect(provider.isSessionActive, isFalse);
   });
-  test('elapsed timing belongs to provider and stops on disconnect', () async {
+  test('telemetry gap saves only through the last reading', () async {
     await provider.disconnect();
     fakeAsync((time) {
       final transport = SerialLink();
@@ -130,13 +131,24 @@ void main() {
       time.flushMicrotasks();
       transport.bytes.add(Uint8List.fromList(ascii.encode('1,2,3,4,5,6\n')));
       expect(p.startSession(), isTrue);
-      time.elapse(const Duration(seconds: 3));
-      expect(p.sessionElapsed, const Duration(seconds: 3));
+      time.elapse(const Duration(seconds: 1));
+      transport.bytes.add(Uint8List.fromList(ascii.encode('1,2,3,4,5,7\n')));
+      time.elapse(const Duration(seconds: 2));
+      expect(p.sessionElapsed, const Duration(seconds: 1));
       expect(p.status, 'No signal');
       expect(p.canStartSession, isFalse);
+      expect(p.isSessionActive, isFalse);
+      transport.bytes.add(Uint8List.fromList(ascii.encode('1,2,3,4,5,800\n')));
+      expect(p.sessionReadingCount, 1);
+      List<int>? saved;
+      StorageService().getSessions().then((sessions) {
+        saved = sessions.map((session) => session.maxGrip).toList();
+      });
+      time.flushMicrotasks();
+      expect(saved, [7]);
       p.disconnect();
       time.elapse(const Duration(seconds: 5));
-      expect(p.sessionElapsed, const Duration(seconds: 3));
+      expect(p.sessionElapsed, const Duration(seconds: 1));
       expect(p.isSessionActive, isFalse);
       p.dispose();
       time.flushMicrotasks();
